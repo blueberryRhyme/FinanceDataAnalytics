@@ -54,8 +54,20 @@ def register():
     return render_template('register.html')
 
 
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    if request.method == 'POST':
+        username = request.form.get('username')
+        password = request.form.get('password')
+
+        #   Check if the user exists and password is correct
+        if not User.query.filter_by(username=username).first():
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+
+        flash('Login successful!')
+        #   redirect to dashboard or homepage
+        return redirect(url_for('test'))
     return render_template('login.html')
 
 if __name__ == '__main__':
