@@ -5,7 +5,7 @@ from .models import User
 main = Blueprint('main', __name__)
 
 @main.route('/')
-def test():
+def home():
     return render_template('home.html')
 
 @main.route('/register', methods=['GET', 'POST'])
@@ -32,3 +32,23 @@ def register():
 @main.route('/login')
 def login():
     return render_template('login.html')
+
+
+@main.route('/expenseForm')
+def expenseForm():
+    return render_template('expenseForm.html')
+
+
+@main.route('/submission', methods=['POST'])
+def submission():
+    amount   = request.form.get('amount')
+    category = request.form.get('category')
+    date     = request.form.get('date')
+
+    if category == 'other':
+        custom = request.form.get('otherCategory', '').strip()
+        if custom:
+            category = custom
+
+    return render_template('submission.html',amount=amount,category=category,date=date)
+
