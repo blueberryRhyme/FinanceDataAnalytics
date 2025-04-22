@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <title>{% block title %}$$$${% endblock %}</title>
   <style>
+
+
     body {
       font-family: Arial, sans-serif;
       margin: 0;
@@ -16,8 +18,17 @@
       text-align: center;
       padding: 1em 0;
     }
+
+    .site-footer{
+
+    position:fixed;
+    left:0px;
+    bottom:0px;
+    width:100%;
+    }
     .site-content {
       padding: 2em;
+      flex: 1;
     }
     nav a {
       color: white;
@@ -36,7 +47,7 @@
   <header class="site-header">
     <nav>
       <a href="{{ url_for('main.expenseForm') }}">Log Expense</a> |
-      <a href="">Profile</a>
+      <a href="{{ url_for('main.profile') }}">Profile</a> |
       <a href="">Friends</a>
     </nav>
   </header>

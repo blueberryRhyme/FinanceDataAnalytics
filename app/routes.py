@@ -1,37 +1,55 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
-from . import db
+from flask_login import login_user, logout_user, current_user, login_required
+from . import db, bcrypt
 from .models import User
-from app.forms import ExpenseForm
+from app.forms import ExpenseForm, RegistrationForm, LoginForm
 main = Blueprint('main', __name__)
 
 @main.route('/')
 def home():
     return render_template('home.html')
 
-@main.route('/register', methods=['GET', 'POST'])
+@main.route('/register', methods=['GET','POST'])
 def register():
-    if request.method == 'POST':
-        # Retrieve form data
-        username = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        
-        # Check if the user already exists
-        if User.query.filter_by(username=username).first():
-            flash('Username already exists')
-            return redirect(url_for('main.register'))
-        
-        # Create a new user and add it to the database
-        new_user = User(username=username, email=email, password=password)
-        db.session.add(new_user)
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        # hash the password
+        pw_hash = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        user = User(username=form.username.data,
+                    email=form.email.data,
+                    password=pw_hash)
+        db.session.add(user)
         db.session.commit()
-        flash('Registration successful, please log in.')
-        return redirect(url_for('main.login'))
-    return render_template('register.html')
 
-@main.route('/login')
+        flash('Your account has been created! You can now log in.', 'success')
+        return redirect(url_for('main.login'))
+
+    return render_template('register.html', form=form)
+
+@main.route('/login', methods=['GET', 'POST'])
 def login():
-    return render_template('login.html')
+    if current_user.is_authenticated:
+        return redirect(url_for('main.expenseForm'))
+    
+    form = LoginForm()
+    if form.validate_on_submit():
+        # look up the user
+        user = User.query.filter_by(email=form.email.data).first()
+        # verify password
+        if user and bcrypt.check_password_hash(user.password, form.password.data):
+            login_user(user, remember=form.remember.data)
+            #  TODO: redirect to main profile page 
+            return redirect(url_for('main.expenseForm'))
+        flash('Login failed. Check your email and password.', 'danger')
+
+    return render_template('login.html', form=form)
+
+
+@main.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html')
+
 
 
 @main.route('/expenseForm', methods=['GET', 'POST'])
