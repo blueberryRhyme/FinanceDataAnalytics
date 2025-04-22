@@ -18,175 +18,41 @@
       border-radius: 5rem;
       background: #F5F5F7;
     }
-
-    .custom-select {
-        position: relative;
-        background-color: rgb(255, 255, 255);
-        border: 1px solid #f0f0f0;
-        margin-top: .8rem;
-        border-radius: 2rem;
-
-    }
-
-    .custom-select select {
-        display: none; 
-    }
-
-    .select-selected {
-    background-color: #F5F5F7;
-    border-radius: 2rem;
-    border: 1px solid #ccc;
-    }
-
-    .select-selected:after {
-    position: absolute;
-    content: "";
-    top: 14px;
-    right: 10px;
-    width: 0;
-    height: 0;
-    border: 6px solid transparent;
-    border-color: #000000 transparent transparent transparent;
-
-    }
-
-    .select-selected.select-arrow-active:after {
-    border-color: transparent transparent #000000 transparent;
-    top: 7px;
-    }
-
-    
-
-    .select-items div,.select-selected {
-        color: #000000;
-        padding: 8px 16px;
-        cursor: pointer;
-    }
-
-    .select-items {
-        position: absolute;
-        top: calc(100% + 4px);
-        background-color: rgb(255, 255, 255);
-        box-shadow: 0 4px 6px -2px rgba(16,24,40,.03),0 12px 16px -4px rgba(16,24,40,.08);
-        border-radius: 2rem;
-        left: 0;
-        right: 0;
-        z-index: 99;
-    }
-
-    .select-hide {
-        display: none;
-    }
-
-    .select-items div:hover, .same-as-selected {
-        background-color: rgba(0, 0, 0, 0.1);
-    }
-
   </style>
+
 </head>
 <body>
   <h1>CALCULATE/ANALYSE EXPENSES</h1>
 
-  <form action="/submission" class = "form-wrapper" method="POST">
-    <label for="amount">Amount</label>
-    <input type="number" id="amount" name="amount" required class="input-box"><br>
+  <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }}">
+    {{ form.csrf_token }}
 
-    <label for="category">Category</label>
-    <div class="custom-select">
-        <select id="category" name="category" required class="input-box">
-            <option value="" disabled selected>— choose one —</option>
-            <option value="food">Food</option>
-            <option value="shopping">Shopping</option>
-            <option value="health">Health</option>
-            <option value="other">Other</option>
-        </select>
+    <label for="amount">{{ form.amount.label }}</label>
+    {{ form.amount(class="input-box") }}
+
+    <label for="category">{{ form.category.label }}</label>
+    {{ form.category(class="input-box") }}
+
+    <div id="other-category-container" style="display: none;">
+      <label for="other_category">{{ form.other_category.label }}</label>
+      {{ form.other_category(class="input-box") }}
     </div>
 
-    <div id="other-category-container">
-      <label for="other-category">Please specify:</label>
-      <input type="text" id="other-category" name="otherCategory" class="input-box">
-    </div>
-    <br>
+    <label for="date">{{ form.date.label }}</label>
+    {{ form.date(class="input-box") }}
 
-    <label for="date">Date</label>
-    <input type="date" id="date" name="date" required class="input-box"><br><br>
-
-    <button type="submit">Submit</button>
+    {{ form.submit(class="input-box") }}
   </form>
 
+
   <script>
-
-    const sel = document.getElementById('category');
+    // show/hide "other" box
+    const cat = document.getElementById('category');
     const otherDiv = document.getElementById('other-category-container');
-    const otherInput = document.getElementById('other-category');
-
-    sel.addEventListener('change', () => {
-      if (sel.value === 'other') {
-        otherDiv.style.display = 'block';
-        otherInput.setAttribute('required', '');
-      } else {
-        otherDiv.style.display = 'none';
-        otherInput.removeAttribute('required');
-        otherInput.value = '';
-      }
+    cat.addEventListener('change', () => {
+      otherDiv.style.display = cat.value === 'other' ? 'block' : 'none';
     });
 
-    document.querySelectorAll('.custom-select').forEach(wrapper => {
-    const sel       = wrapper.querySelector('select');
-
-    const selected  = document.createElement('div');
-    selected.className = 'select-selected';
-    selected.textContent = sel.options[sel.selectedIndex].text || '— choose one —';
-    wrapper.appendChild(selected);
-
-    const itemsCont = document.createElement('div');
-    itemsCont.className = 'select-items select-hide';
-    wrapper.appendChild(itemsCont);
-
-    Array.from(sel.options).forEach((opt, idx) => {
-      if (opt.disabled) return; 
-      const item = document.createElement('div');
-      item.textContent = opt.textContent;
-      if (opt.selected) item.classList.add('same-as-selected');
-      item.addEventListener('click', () => {
-        sel.selectedIndex = idx;
-        sel.dispatchEvent(new Event('change')); 
-        selected.textContent = opt.textContent;
-        itemsCont.querySelectorAll('.same-as-selected').forEach(el=>el.classList.remove('same-as-selected'));
-        item.classList.add('same-as-selected');
-        itemsCont.classList.add('select-hide');
-        selected.classList.remove('select-arrow-active');
-      });
-      itemsCont.appendChild(item);
-    });
-
-    selected.addEventListener('click', e => {
-    e.stopPropagation();
-    const isHidden = itemsCont.classList.contains('select-hide');
-
-
-    document.querySelectorAll('.select-items')
-            .forEach(el => el.classList.add('select-hide'));
-    document.querySelectorAll('.select-selected')
-            .forEach(el => el.classList.remove('select-arrow-active'));
-
-    if (isHidden) {
-        itemsCont.classList.remove('select-hide');
-        selected.classList.add('select-arrow-active');
-    } else {
-        itemsCont.classList.add('select-hide');
-        selected.classList.remove('select-arrow-active');
-    }
-    });
-
-    itemsCont.addEventListener('click', e => e.stopPropagation());
-    selected.addEventListener('click', e => e.stopPropagation());
-  });
-
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.select-items').forEach(el=>el.classList.add('select-hide'));
-    document.querySelectorAll('.select-selected').forEach(el=>el.classList.remove('select-arrow-active'));
-  });
   </script>
 </body>
 </html>

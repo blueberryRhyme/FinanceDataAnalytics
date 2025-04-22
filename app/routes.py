@@ -1,7 +1,7 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from . import db
 from .models import User
-
+from app.forms import ExpenseForm
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -34,9 +34,19 @@ def login():
     return render_template('login.html')
 
 
-@main.route('/expenseForm')
+@main.route('/expenseForm', methods=['GET', 'POST'])
 def expenseForm():
-    return render_template('expenseForm.html')
+    form = ExpenseForm()
+    if form.validate_on_submit():
+        amount = float(form.amount.data)
+        category = form.category.data
+        if category == 'other':
+            category = form.other_category.data.strip() or 'Other'
+        date = form.date.data.isoformat()
+
+        # save to database here …
+
+    return render_template('expenseForm.html', form=form)
 
 
 @main.route('/submission', methods=['POST'])
