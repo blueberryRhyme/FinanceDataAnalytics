@@ -1,8 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Log an Expense</title>
+{% extends "base.html" %}
+
+{% block head %}
+
   <style>
     #other-category-container { display: none; margin-top: .5em; }
     .form-wrapper {
@@ -18,11 +17,19 @@
       border-radius: 5rem;
       background: #F5F5F7;
     }
+    .input-box:focus {
+      outline: none;
+      border-color: #888888;
+      box-shadow: 0 0 5px rgba(80, 79, 79, 0.5);
+    }
   </style>
 
-</head>
-<body>
+{% endblock %}
+
+
+{% block content %}
   <h1>CALCULATE/ANALYSE EXPENSES</h1>
+
 
   <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }}">
     {{ form.csrf_token }}
@@ -54,5 +61,5 @@
     });
 
   </script>
-</body>
-</html>
+  
+{% endblock %}
