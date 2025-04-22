@@ -46,14 +46,20 @@ def expenseForm():
 
         # save to database here …
 
+        # then redirect with params in the URL
+        return redirect(url_for('main.submission', 
+                                amount=amount,
+                                category=category,
+                                date=date))
+
     return render_template('expenseForm.html', form=form)
 
 
-@main.route('/submission', methods=['POST'])
+@main.route('/submission', methods=['GET'])
 def submission():
-    amount   = request.form.get('amount')
-    category = request.form.get('category')
-    date     = request.form.get('date')
+    amount   = request.args.get('amount')
+    category = request.args.get('category')
+    date     = request.args.get('date')
 
     if category == 'other':
         custom = request.form.get('otherCategory', '').strip()
