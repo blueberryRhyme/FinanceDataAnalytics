@@ -1,16 +1,13 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Expense Submitted</title>
-</head>
-<body>
+{% extends "base.html" %}
+
+{% block title %}Expense Recorded{% endblock %}
+
+{% block content %}
   <h1>Expense Recorded</h1>
   <ul>
     <li><strong>Amount:</strong> {{ amount }}</li>
     <li><strong>Category:</strong> {{ category }}</li>
     <li><strong>Date:</strong> {{ date }}</li>
   </ul>
-  <a href="/expenseForm">Log another expense</a>
-</body>
-</html>
+  <a href="{{ url_for('main.expenseForm') }}">Log another expense</a>
+{% endblock %}
