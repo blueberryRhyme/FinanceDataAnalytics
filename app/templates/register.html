@@ -1,34 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Register - Finance App</title>
-    <link rel="stylesheet" href="">
-</head>
-<body>
-    <h1>Sign Up</h1>
-    <form action="/register" method="POST">
-        <label for="username">Username:</label>
-        <input type="text" name="username" required>
-        <br>
-        <label for="email">Email:</label>
-        <input type="email" name="email" required>
-        <br>
-        <label for="password">Password:</label>
-        <input type="password" name="password" required>
-        <br>
-        <button type="submit">Register</button>
-    </form>
-    {* #   todo: Add a link to the login page *}
-    <p>Already have an account? <a href="/login">Log In</a></p>
-    {% with messages = get_flashed_messages() %}
-      {% if messages %}
-        <ul>
-        {% for message in messages %}
-          <li>{{ message }}</li>
+{% extends "base.html" %}
+
+{% block title %}Register – Finance App{% endblock %}
+
+{% block content %}
+  <h1>Sign Up</h1>
+  <form method="POST" action="{{ url_for('main.register') }}">
+    {{ form.csrf_token }}
+
+    <label for="username">{{ form.username.label }}</label>
+    {{ form.username(class="input-box") }}
+
+    <label for="email">{{ form.email.label }}</label>
+    {{ form.email(class="input-box") }}
+
+    <label for="password">{{ form.password.label }}</label>
+    {{ form.password(class="input-box") }}
+
+    <label for="confirm">{{ form.confirm.label }}</label>
+    {{ form.confirm(class="input-box") }}
+
+    {{ form.submit(class="btn") }}
+  </form>
+
+  <p>Already have an account? <a href="{{ url_for('main.login') }}">Log In</a></p>
+
+  {# Show flash messages #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+      {% for category, msg in messages %}
+        <li class="flash-{{ category }}">{{ msg }}</li>
+      {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {# Show form validation errors #}
+  {% if form.errors %}
+    <div class="form-errors">
+      <ul>
+      {% for field, errs in form.errors.items() %}
+        {% for err in errs %}
+          <li>{{ err }}</li>
         {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-</body>
-</html>
+      {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+{% endblock %}

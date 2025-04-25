@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block head %}
+
+  <style>
+    #other-category-container { display: none; margin-top: .5em; }
+    .form-wrapper {
+      display: flex;
+      flex-direction: column;
+      width: 300px;
+      margin: auto;
+    }
+    .input-box {
+      margin-bottom: 1em;
+      padding: .5em;
+      border: 1px solid #ccc;
+      border-radius: 5rem;
+      background: #F5F5F7;
+    }
+    .input-box:focus {
+      outline: none;
+      border-color: #888888;
+      box-shadow: 0 0 5px rgba(80, 79, 79, 0.5);
+    }
+    select.input-box {
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    }
+
+  /* hide default arrow */
+  select.input-box::-ms-expand {
+    display: none;
+  }
+  </style>
+
+{% endblock %}
+
+
+{% block content %}
+  <h1>CALCULATE/ANALYSE EXPENSES</h1>
+
+
+  <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }}">
+    {{ form.csrf_token }}
+
+    <label for="amount">{{ form.amount.label }}</label>
+    {{ form.amount(class="input-box") }}
+
+    <label for="category">{{ form.category.label }}</label>
+    {{ form.category(class="input-box") }}
+
+    <div id="other-category-container" style="display: none;">
+      <label for="other_category">{{ form.other_category.label }}</label>
+      {{ form.other_category(class="input-box") }}
+    </div>
+
+    <label for="date">{{ form.date.label }}</label>
+    {{ form.date(class="input-box") }}
+
+    {{ form.submit(class="input-box") }}
+  </form>
+
+
+  <script>
+    // show/hide "other" box
+    const cat = document.getElementById('category');
+    const otherDiv = document.getElementById('other-category-container');
+    cat.addEventListener('change', () => {
+      otherDiv.style.display = cat.value === 'other' ? 'block' : 'none';
+    });
+
+  </script>
+  
+{% endblock %}
