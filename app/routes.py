@@ -7,7 +7,9 @@ main = Blueprint('main', __name__)
 
 @main.route('/')
 def home():
-    return render_template('home.html')
+    if current_user.is_authenticated:
+        return redirect(url_for('main.profile'))
+    return render_template('home6.html')
 
 @main.route('/register', methods=['GET','POST'])
 def register():

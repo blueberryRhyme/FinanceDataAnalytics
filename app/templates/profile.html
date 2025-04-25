@@ -3,6 +3,7 @@
 {% block title %}Your Profile{% endblock %}
 
 {%block head %}
+<style>
 .button {
   margin-bottom: 1em;
   padding: .5em;
@@ -10,6 +11,7 @@
   border-radius: 5rem;
   background: #F5F5F7;
 }
+</style>
 {% endblock %}
 {% block content %}
   <h1>Welcome, {{ current_user.username }}!</h1>
