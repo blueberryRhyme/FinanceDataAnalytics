@@ -4,6 +4,10 @@ from wtforms import DecimalField, SelectField, StringField, DateField, SubmitFie
 from wtforms.validators import DataRequired, Optional, NumberRange, Email, EqualTo, ValidationError
 from app.models import User 
 
+
+class LogoutForm(FlaskForm):
+    submit = SubmitField('Log out')
+
 class ExpenseForm(FlaskForm):
     amount = DecimalField(
         'Amount',

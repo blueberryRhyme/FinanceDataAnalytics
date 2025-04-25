@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, current_user, login_required
 from . import db, bcrypt
 from .models import User
-from app.forms import ExpenseForm, RegistrationForm, LoginForm
+from app.forms import ExpenseForm, RegistrationForm, LoginForm, LogoutForm
 main = Blueprint('main', __name__)
 
 @main.route('/')
@@ -48,7 +48,8 @@ def login():
 @main.route('/profile')
 @login_required
 def profile():
-    return render_template('profile.html')
+    logout_form = LogoutForm()
+    return render_template('profile.html',logout_form=logout_form)
 
 
 
@@ -86,3 +87,9 @@ def submission():
 
     return render_template('submission.html',amount=amount,category=category,date=date)
 
+@main.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('main.login'))
