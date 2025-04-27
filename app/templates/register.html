@@ -8,16 +8,16 @@
     {{ form.csrf_token }}
 
     <label for="username">{{ form.username.label }}</label>
-    {{ form.username(class="input-box") }}
+    {{ form.username(class="input-box") }}<br>
 
     <label for="email">{{ form.email.label }}</label>
-    {{ form.email(class="input-box") }}
+    {{ form.email(class="input-box") }}<br>
 
     <label for="password">{{ form.password.label }}</label>
-    {{ form.password(class="input-box") }}
+    {{ form.password(class="input-box") }}<br>
 
     <label for="confirm">{{ form.confirm.label }}</label>
-    {{ form.confirm(class="input-box") }}
+    {{ form.confirm(class="input-box") }}<br>
 
     {{ form.submit(class="btn") }}
   </form>
