@@ -11,6 +11,12 @@ def home():
         return redirect(url_for('main.profile'))
     return render_template('home6.html')
 
+@main.route('/exp1')
+@login_required
+def exp1():
+    # You could fetch expenses here or use JavaScript to load them
+    return render_template('exp1.html')
+
 @main.route('/register', methods=['GET','POST'])
 def register():
     form = RegistrationForm()
