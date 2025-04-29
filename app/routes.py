@@ -138,15 +138,35 @@ def add_friend(user_id):
 @login_required
 def api_user_search():
     q = request.args.get("q", "").strip()
-    # base query: everyone except yourself
+    # start with everyone but yourself
     query = User.query.filter(User.id != current_user.id)
-
     if q:
         query = query.filter(User.username.ilike(f"%{q}%"))
+    matches = query.order_by(User.username).limit(10).all()
 
-    # limit results to, say, 10 matches
-    users = query.order_by(User.username).limit(10).all()
+    # pre-fetch your friend IDs into a set
+    my_friend_ids = {u.id for u in current_user.friends}
 
-    return jsonify(
-        [{"id": u.id, "username": u.username} for u in users]
-    )
+    payload = []
+    for u in matches:
+        payload.append({
+            "id":         u.id,
+            "username":   u.username,
+            "is_friend":  u.id in my_friend_ids
+        })
+    return jsonify(payload)
+
+@main.route("/remove_friend/<int:user_id>", methods=["POST"])
+@login_required
+def remove_friend(user_id):
+    other = User.query.get_or_404(user_id)
+
+    # check it exists in current user's friends, remove both sides
+    if other in current_user.friends:
+        current_user.friends.remove(other)
+    if current_user in other.friends:
+        other.friends.remove(current_user)
+
+    db.session.commit()
+    flash(f"Removed {other.username} from your friends.", "success")
+    return redirect(url_for("main.profile"))
