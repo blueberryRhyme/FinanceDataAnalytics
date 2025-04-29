@@ -5,38 +5,57 @@
   <title>{% block title %}$$$${% endblock %}</title>
   <style>
 
+  html, body {
+    height: 100%;     
+    margin: 0;      
+  }
+
 
     body {
+      display: flex;
+      flex-direction: column;
       font-family: Arial, sans-serif;
-      margin: 0;
       padding: 0;
       background-color: #f4f4f4;
     }
-    .site-header, .site-footer {
-      background-color: #333;
-      color: white;
+    .site-header {
+      position: sticky;
+      top: 0;
+      background-color: #edffc6;
+      color: rgb(0, 0, 0);
       text-align: center;
       padding: 1em 0;
+      z-index: 1000; 
+    }
+
+
+    ::selection {
+        color: #fff;
+        background: #151515;
     }
 
     .site-footer{
 
-    position:fixed;
+    background-color: #edffc6;
+    color: rgb(0, 0, 0);
+    text-align: center;
     left:0px;
     bottom:0px;
     width:100%;
+    padding: 1em 0;
     }
     .site-content {
       padding: 2em;
       flex: 1;
     }
     nav a {
-      color: white;
+      color: rgb(0, 0, 0);
       text-decoration: none;
       margin: 0 1em;
     }
     nav a:hover {
       text-decoration: underline;
+      background-color: rgb(255, 237, 103);
     }
   </style>
     {% block head %}{% endblock %}
@@ -48,7 +67,7 @@
     <nav>
       <a href="{{ url_for('main.expenseForm') }}">Log Expense</a> |
       <a href="{{ url_for('main.profile') }}">Profile</a> |
-      <a href="">Friends</a> 
+      <a href="{{ url_for('main.friends') }}">Friends</a> 
     </nav>
   </header>
 
@@ -59,6 +78,8 @@
   <footer class="site-footer">
     <p>© 2025 Agile-Web-Dev Group 9 </p>
   </footer>
+
+  {% block scripts %}{% endblock %}
 
 </body>
 </html>

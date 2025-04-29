@@ -51,6 +51,7 @@
     {{ logout_form.submit(class="button") }}
   </form>
 
+  <div class="profile-content-container">
   <section class="profile-section">
     <h2>Financial Goals</h2>
     <div class="goal-list" id="goal-list">
@@ -91,11 +92,22 @@
       <button type="submit" class="button">Add Friend</button>
     </form>
   </section>
+
+
+  <section class="expense-section">
+    <h2>Your Recent Expenses</h2>
+    <ul id="expense-list" class="goal-list">
+      <!-- JS will inject <li> items here -->
+    </ul>
+  </section>
+
+  </div>
   
   <!-- TODO: log out, user specific info etc -->
-{% endblock %}
 
-{% block script %}
+  {% endblock %}
+
+  {% block scripts %}
   <script>
     // Function to add a new goal to the list dynamically
     function addGoal(event) {
@@ -138,5 +150,26 @@
       // Clear the input field
       document.getElementById('friend-name').value = '';
     }
+
+ 
+    document.addEventListener('DOMContentLoaded', () => {
+      fetch('/api/expenses')
+        .then(res => {
+          if (!res.ok) throw new Error(res.statusText);
+          return res.json();
+        })
+        .then(expenses => {
+          const list = document.getElementById('expense-list');
+          expenses.forEach(exp => {
+            const li = document.createElement('li');
+            li.textContent = 
+              `${exp.date} — ${exp.category}: $${exp.amount.toFixed(2)}`;
+            list.appendChild(li);
+          });
+        })
+        .catch(err => console.error('Error loading expenses:', err));
+    });
   </script>
-{% endblock %}
+  {% endblock %}
+
+

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Find Friends{% endblock %}
+
+{% block content %}
+  <h1>Find Friends</h1>
+
+  <input type="text"
+         id="user-search-input"
+         placeholder="Type a username…">
+
+  <ul id="search-results"></ul>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const input  = document.getElementById("user-search-input");
+  const results = document.getElementById("search-results");
+
+  let lastController;
+
+  input.addEventListener("input", async () => {
+    const q = input.value.trim();
+    // abort any in-flight request
+    if (lastController) lastController.abort();
+    if (!q) {
+      results.innerHTML = "";
+      return;
+    }
+
+    lastController = new AbortController();
+    try {
+      const resp = await fetch(`/api/user_search?q=${encodeURIComponent(q)}`,
+                               { signal: lastController.signal });
+      if (!resp.ok) throw new Error("Network error");
+      const users = await resp.json();
+
+      results.innerHTML = users.map(u =>
+        `<li>
+           ${u.username}
+           <form method="post"
+                 action="/add_friend/${u.id}"
+                 style="display:inline">
+             <input type="hidden" name="csrf_token"
+                    value="{{ csrf_token() }}">
+             <button type="submit">Add</button>
+           </form>
+         </li>`
+      ).join("");
+
+    } catch (err) {
+      if (err.name !== "AbortError") console.error(err);
+    }
+  });
+});
+</script>
+{% endblock %}
