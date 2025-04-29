@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Financial Dashboard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      background-color: #f5f7fa;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 40px;
+    }
+    .main {
+      width: 100%;
+      max-width: 1200px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 30px;
+      color: #2c3e50;
+    }
+    .description {
+      font-size: 18px;
+      margin-top: 20px;
+      color: #7f8c8d;
+    }
+    .expenses {
+      margin-top: 40px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    .expense-box {
+      background-color: white;
+      border: 1px solid #dcdde1;
+      border-radius: 15px;
+      padding: 20px;
+      width: 200px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+    .expense-box:hover {
+      transform: scale(1.03);
+    }
+    .expense-title {
+      font-weight: bold;
+      font-size: 16px;
+      color: #2c3e50;
+      margin-bottom: 10px;
+    }
+    .expense-amount {
+      font-size: 20px;
+      color: #e74c3c;
+    }
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 999;
+      left: 0; top: 0;
+      width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+    }
+    .modal-content {
+      background-color: #fff;
+      padding: 30px;
+      border-radius: 15px;
+      max-width: 500px;
+      width: 90%;
+      position: relative;
+    }
+    .close-button {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    canvas {
+      width: 100% !important;
+      height: 250px !important;
+    }
+  </style>
+</head>
+<body>
+
+<div class="main">
+  <h1>Welcome to Your Financial Dashboard</h1>
+  <p class="description">Click on each expense to view detailed trends and graphs.</p>
+
+  <div class="expenses" id="expenses-container">
+    <!-- Expense boxes will be generated here dynamically -->
+  </div>
+</div>
+
+<!-- Modals will be generated dynamically -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  const expenses = [
+    { id: 'rent', title: 'Rent', amount: '$1,200', data: [1200, 1200, 1200, 1250, 1200] },
+    { id: 'groceries', title: 'Groceries', amount: '$320', data: [300, 350, 320, 310, 330] },
+    { id: 'utilities', title: 'Utilities', amount: '$150', data: [140, 145, 150, 155, 150] },
+    { id: 'tuition', title: 'Tuition Fees', amount: '$2,000', data: [2000, 2000, 2000, 2100, 2050] },
+    { id: 'car', title: 'Car Expenses', amount: '$400', data: [380, 400, 390, 420, 410] },
+    { id: 'taxes', title: 'Taxes', amount: '$500', data: [500, 480, 490, 510, 495] },
+    { id: 'phone', title: 'Phone Bills', amount: '$60', data: [55, 60, 60, 62, 58] },
+    { id: 'netflix', title: 'Netflix Subscription', amount: '$15', data: [15, 15, 15, 16, 15] },
+    { id: 'insurance', title: 'Insurance', amount: '$200', data: [190, 200, 195, 205, 200] },
+    { id: 'travel', title: 'Travel', amount: '$600', data: [500, 600, 650, 580, 620] },
+    { id: 'entertainment', title: 'Entertainment', amount: '$150', data: [140, 150, 160, 145, 150] },
+    { id: 'dining', title: 'Dining Out', amount: '$220', data: [200, 210, 220, 230, 215] },
+    { id: 'health', title: 'Health Expenses', amount: '$180', data: [170, 180, 175, 185, 180] },
+    { id: 'savings', title: 'Savings Contribution', amount: '$500', data: [500, 520, 510, 530, 520] },
+    { id: 'misc', title: 'Miscellaneous', amount: '$100', data: [90, 100, 95, 110, 100] }
+  ];
+
+  const expensesContainer = document.getElementById('expenses-container');
+
+  expenses.forEach(expense => {
+    // Create expense box
+    const box = document.createElement('div');
+    box.className = 'expense-box';
+    box.innerHTML = `
+      <div class="expense-title">${expense.title}</div>
+      <div class="expense-amount">${expense.amount}</div>
+    `;
+    box.onclick = () => openModal(expense.id + 'Modal');
+    expensesContainer.appendChild(box);
+
+    // Create corresponding modal
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = expense.id + 'Modal';
+    modal.innerHTML = `
+      <div class="modal-content">
+        <span class="close-button" onclick="closeModal('${expense.id}Modal')">&times;</span>
+        <h3>${expense.title} Overview</h3>
+        <canvas id="${expense.id}Chart"></canvas>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Create chart
+    setTimeout(() => { // Allow canvas to exist before trying to render
+      new Chart(document.getElementById(expense.id + 'Chart'), {
+        type: 'line',
+        data: {
+          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+          datasets: [{
+            label: expense.title,
+            data: expense.data,
+            backgroundColor: 'rgba(46, 204, 113, 0.2)',
+            borderColor: '#2ecc71',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            y: {
+              beginAtZero: false
+            }
+          }
+        }
+      });
+    }, 0);
+  });
+
+  function openModal(id) {
+    document.getElementById(id).style.display = 'flex';
+  }
+
+  function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+  }
+</script>
+
+</body>
+</html>
