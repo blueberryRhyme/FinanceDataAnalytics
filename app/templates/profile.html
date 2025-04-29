@@ -3,99 +3,68 @@
 {% block title %}Your Profile{% endblock %}
 
 {%block head %}
-<style>
-.button {
-  margin-bottom: 1em;
-  padding: .5em;
-  border: 1px solid #ccc;
-  border-radius: 5rem;
-  background: #F5F5F7;
-}
-.profile-section {
-  margin-top: 2em;
-}
-.friend-list, .goal-list {
-  margin-top: 1em;
-  padding: 1em;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-}
-.friend-item, .goal-item {
-  margin-bottom: 0.5em;
-  padding: 0.5em;
-  border-bottom: 1px solid #ddd;
-}
-.friend-item:last-child, .goal-item:last-child {
-  border-bottom: none;
-}
-.add-form {
-  margin-top: 1em;
-}
-.add-form input[type="text"], .add-form input[type="number"], .add-form input[type="date"] {
-  padding: 0.5em;
-  width: 70%;
-  margin-right: 0.5em;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-}
-</style>
+<!-- No additional styles needed here as they're now in main.css -->
 {% endblock %}
 
 {% block content %}
+<div class="page-container">
   <h1>Welcome, {{ current_user.username }}!</h1>
-  <p><strong>Email:</strong> {{ current_user.email }}</p>
-
-  <form action="{{ url_for('main.logout') }}" method="post">
-    {{ logout_form.csrf_token }}
-    {{ logout_form.submit(class="button") }}
-  </form>
+  
+  <div class="card">
+    <p><strong>Email:</strong> {{ current_user.email }}</p>
+    
+    <form action="{{ url_for('main.logout') }}" method="post" style="text-align: right; margin-top: 10px;">
+      {{ logout_form.csrf_token }}
+      {{ logout_form.submit(class="button-small") }}
+    </form>
+  </div>
 
   <section class="profile-section">
     <h2>Financial Goals</h2>
-    <div class="goal-list" id="goal-list">
-      <!-- Sample goals -->
-      <div class="goal-item">Buy a new car - $30,000 by 2025-01-01</div>
-      <div class="goal-item">Save for vacation - $5,000 by 2025-12-01</div>
-      <!-- Existing goals can be dynamically populated here -->
-      {% for goal in current_user.goals %}
-        <div class="goal-item">{{ goal.name }} - ${{ goal.amount }} by {{ goal.target_date }}</div>
-      {% endfor %}
-    </div>
+    <div class="card">
+      <div class="goal-list" id="goal-list">
+        <!-- Sample goals -->
+        <div class="goal-item">Buy a new car - $30,000 by 2025-01-01</div>
+        <div class="goal-item">Save for vacation - $5,000 by 2025-12-01</div>
+        <!-- Existing goals can be dynamically populated here -->
+        {% for goal in current_user.goals %}
+          <div class="goal-item">{{ goal.name }} - ${{ goal.amount }} by {{ goal.target_date }}</div>
+        {% endfor %}
+      </div>
 
-    <!-- Add New Goal Form -->
-    <form class="add-form" onsubmit="addGoal(event)">
-      <input type="text" id="goal-name" placeholder="Goal Name" required>
-      <input type="number" id="target-amount" placeholder="Target Amount ($)" required>
-      <input type="date" id="target-date" required><br>
-      <button type="submit" class="button">Add Goal</button>
-    </form>
+      <!-- Add New Goal Form -->
+      <form class="add-form" onsubmit="addGoal(event)">
+        <h3 class="section-title">Add New Goal</h3>
+        <input type="text" id="goal-name" placeholder="Goal Name" class="input-box" required>
+        <input type="number" id="target-amount" placeholder="Target Amount ($)" class="input-box" required>
+        <input type="date" id="target-date" class="input-box" required>
+
+        <button type="submit" class="button">Add Goal</button>
+      </form>
+    </div>
   </section>
 
   <section class="profile-section">
     <h2>Friends List</h2>
-    <div class="friend-list" id="friend-list">
-      <!-- Sample friends -->
-      <div class="friend-item">Mark</div>
-      <div class="friend-item">Jia</div>
-      <!-- Existing friends can be dynamically populated here -->
-      {% for friend in current_user.friends %}
-        <div class="friend-item">{{ friend.username }}</div>
-      {% endfor %}
+    <div class="card">
+      <div class="friend-list" id="friend-list">
+        <!-- Sample friends -->
+        <div class="friend-item">Mark</div>
+        <div class="friend-item">Jia</div>
+        <!-- Existing friends can be dynamically populated here -->
+        {% for friend in current_user.friends %}
+          <div class="friend-item">{{ friend.username }}</div>
+        {% endfor %}
+      </div>
+
+      <!-- Add New Friend Form -->
+      <form class="add-form" onsubmit="addFriend(event)">
+        <h3 class="section-title">Add New Friend</h3>
+        <input type="text" id="friend-name" placeholder="Enter friend's name..." class="input-box" required>
+        <button type="submit" class="button">Add Friend</button>
+      </form>
     </div>
-
-    <!-- Add New Friend Form -->
-    <!-- TODO: proceed to friends suggestions page etc -->
-    <form class="add-form" onsubmit="addFriend(event)">
-      <input type="text" id="friend-name" placeholder="Enter friend's name..." required>
-      <button type="submit" class="button">Add Friend</button>
-    </form>
   </section>
-  
-  <!-- TODO: log out, user specific info etc -->
-{% endblock %}
-
-{% block script %}
   <script>
     // Function to add a new goal to the list dynamically
     function addGoal(event) {

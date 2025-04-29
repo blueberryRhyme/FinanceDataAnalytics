@@ -46,8 +46,7 @@ def login():
         # verify password
         if user and bcrypt.check_password_hash(user.password, form.password.data):
             login_user(user, remember=form.remember.data)
-            #  TODO: redirect to main profile page 
-            return redirect(url_for('main.expenseForm'))
+            return redirect(url_for('main.profile'))
         flash('Login failed. Check your email and password.', 'danger')
 
     return render_template('login.html', form=form)
@@ -101,3 +100,9 @@ def logout():
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.login'))
+
+@main.route('/friends')
+@login_required
+def friends():
+    logout_form = LogoutForm()
+    return render_template('friends.html', logout_form=logout_form)

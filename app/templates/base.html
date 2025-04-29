@@ -3,53 +3,38 @@
 <head>
   <meta charset="UTF-8">
   <title>{% block title %}$$$${% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <style>
-
-
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f4f4f4;
-    }
-    .site-header, .site-footer {
-      background-color: #333;
-      color: white;
-      text-align: center;
-      padding: 1em 0;
-    }
-
+    /* Base-specific styles that aren't in main.css */
     .site-footer{
-
-    position:fixed;
-    left:0px;
-    bottom:0px;
-    width:100%;
+      position: fixed;
+      left: 0px;
+      bottom: 0px;
+      width: 100%;
     }
+    
     .site-content {
       padding: 2em;
       flex: 1;
-    }
-    nav a {
-      color: white;
-      text-decoration: none;
-      margin: 0 1em;
-    }
-    nav a:hover {
-      text-decoration: underline;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
     }
   </style>
     {% block head %}{% endblock %}
 
 </head>
 <body>
-
   <header class="site-header">
-    <nav>
-      <a href="{{ url_for('main.expenseForm') }}">Log Expense</a> |
-      <a href="{{ url_for('main.profile') }}">Profile</a> |
-      <a href="">Friends</a> 
-    </nav>
+    <div class="navigation-container">
+      <nav class="main-nav">
+        <a href="{{ url_for('main.exp1') }}" class="nav-link">Dashboard</a>
+        <a href="{{ url_for('main.expenseForm') }}" class="nav-link">Log Expense</a>
+        <a href="{{ url_for('main.profile') }}" class="nav-link">Profile</a>
+        <a href="{{ url_for('main.friends') }}" class="nav-link">Friends</a>
+      </nav>
+    </div>
   </header>
 
   <main class="site-content">

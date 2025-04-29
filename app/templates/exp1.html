@@ -1,105 +1,358 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Financial Dashboard</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      height: 100vh;
-      background-color: #f5f7fa;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      padding: 40px;
-    }
-    .main {
-      width: 100%;
-      max-width: 1200px;
-      text-align: center;
-    }
-    h1 {
-      font-size: 30px;
-      color: #2c3e50;
-    }
-    .description {
-      font-size: 18px;
-      margin-top: 20px;
-      color: #7f8c8d;
-    }
-    .expenses {
-      margin-top: 40px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-    }
-    .expense-box {
-      background-color: white;
-      border: 1px solid #dcdde1;
-      border-radius: 15px;
-      padding: 20px;
-      width: 200px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-      cursor: pointer;
-      transition: transform 0.2s ease;
-    }
-    .expense-box:hover {
-      transform: scale(1.03);
-    }
-    .expense-title {
-      font-weight: bold;
-      font-size: 16px;
-      color: #2c3e50;
-      margin-bottom: 10px;
-    }
-    .expense-amount {
-      font-size: 20px;
-      color: #e74c3c;
-    }
-    /* Modal styles */
-    .modal {
-      display: none;
-      position: fixed;
-      z-index: 999;
-      left: 0; top: 0;
-      width: 100%; height: 100%;
-      background-color: rgba(0,0,0,0.6);
-      justify-content: center;
-      align-items: center;
-    }
-    .modal-content {
-      background-color: #fff;
-      padding: 30px;
-      border-radius: 15px;
-      max-width: 500px;
-      width: 90%;
-      position: relative;
-    }
-    .close-button {
-      position: absolute;
-      top: 15px;
-      right: 20px;
-      font-size: 20px;
-      cursor: pointer;
-    }
-    canvas {
-      width: 100% !important;
-      height: 250px !important;
-    }
+{% extends "base.html" %}
+
+{% block title %}Financial Dashboard{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary: #64748b;
+    --accent: #3b82f6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --background: #f8fafc;
+    --white: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+  }
+
+  * { box-sizing: border-box; }
+  
+  /* Dashboard container */
+  .dashboard-container {
+    padding: 30px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    min-height: 80vh;
+  }
+  /* Dashboard header */
+  .dashboard-header {
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 30px;
+  }
+  
+  h1 {
+    font-size: 36px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    text-align: center;
+  }
+  
+  .dashboard-description {
+    font-size: 18px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  /* Summary cards at the top */
+  .summary-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 40px;
+    justify-content: center;
+  }
+  
+  .summary-card {
+    background-color: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    flex: 1;
+    min-width: 280px;
+    max-width: 380px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  /* Border indicator for cards */
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  }
+  
+  .summary-card.success::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  }
+  
+  .summary-card.warning::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+  }
+  
+  .summary-card.danger::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+  }
+  
+  .summary-title {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+  
+  .summary-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  
+  .summary-change {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .change-positive {
+    color: var(--success);
+  }
+  
+  .change-negative {
+    color: var(--danger);
+  }
+  
+  /* Expenses grid */
+  .expense-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+  }
+  
+  .expense-card {
+    background-color: var(--white);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .expense-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .expense-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+  }
+  
+  .expense-card:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  
+  .expense-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  
+  .expense-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 10px;
+  }
+  
+  .expense-date {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+  }
+  
+  .expense-trend {
+    height: 40px;
+    margin-top: 10px;
+  }
+  /* Chart container */
+  .chart-container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin-top: 40px;
+  }
+  
+  .chart-card {
+    background-color: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow-md);
+    flex: 1;
+    min-width: 45%;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .chart-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  }
+  
+  .chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+  
+  /* Modal styles */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px);
+  }
+  
+  .modal-content {
+    background-color: var(--white);
+    padding: 30px;
+    border-radius: 16px;
+    max-width: 700px;
+    width: 90%;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+    animation: modalFadeIn 0.3s ease;
+  }
+  
+  @keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .close-button {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+  }
+  
+  .close-button:hover {
+    color: var(--danger);
+  }
+  
+  canvas {
+    width: 100% !important;
+    height: 300px !important;
+  }
   </style>
-</head>
-<body>
+{% endblock %}
 
-<div class="main">
-  <h1>Welcome to Your Financial Dashboard</h1>
-  <p class="description">Click on each expense to view detailed trends and graphs.</p>
+{% block content %}
+<div class="page-container">
+  <div class="header-container">
+    <h1>Financial Dashboard</h1>
+    <p class="page-description">Track your expenses, monitor spending trends, and manage your finances</p>
+  </div>
+  
+  <!-- Summary cards -->  
+  <div class="summary-cards">
+    <div class="summary-card">
+      <div class="summary-title">Total Expenses</div>
+      <div class="summary-value">$5,670</div>
+      <div class="summary-change change-negative">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/>
+        </svg>
+        12% from last month
+      </div>
+    </div>
+    
+    <div class="summary-card success">
+      <div class="summary-title">Savings</div>
+      <div class="summary-value">$1,250</div>
+      <div class="summary-change change-positive">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/>
+        </svg>
+        8% from last month
+      </div>
+    </div>
+    
+    <div class="summary-card warning">
+      <div class="summary-title">Monthly Budget</div>
+      <div class="summary-value">$7,500</div>
+      <div class="summary-change">
+        24% remaining
+      </div>
+    </div>
+  </div>
 
-  <div class="expenses" id="expenses-container">
-    <!-- Expense boxes will be generated here dynamically -->
+  <!-- Expense grid -->  
+  <h2 style="align-self: flex-start; margin-left: 20px; color: var(--text-primary); font-size: 24px; margin-bottom: 16px;">Recent Expenses</h2>
+  <div class="expense-grid" id="expenses-container">
+    <!-- Expense cards will be generated here dynamically -->
+  </div>
+
+<!-- Modals will be generated dynamically -->
+
+  <!-- Chart sections -->  
+  <div class="chart-container">
+    <div class="chart-card">
+      <div class="chart-title">Monthly Spending Trends</div>
+      <canvas id="spendingTrendsChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Expense Distribution</div>
+      <canvas id="expenseDistributionChart"></canvas>
+    </div>
   </div>
 </div>
 
@@ -107,37 +360,34 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+  // Sample expense data
   const expenses = [
-    { id: 'rent', title: 'Rent', amount: '$1,200', data: [1200, 1200, 1200, 1250, 1200] },
-    { id: 'groceries', title: 'Groceries', amount: '$320', data: [300, 350, 320, 310, 330] },
-    { id: 'utilities', title: 'Utilities', amount: '$150', data: [140, 145, 150, 155, 150] },
-    { id: 'tuition', title: 'Tuition Fees', amount: '$2,000', data: [2000, 2000, 2000, 2100, 2050] },
-    { id: 'car', title: 'Car Expenses', amount: '$400', data: [380, 400, 390, 420, 410] },
-    { id: 'taxes', title: 'Taxes', amount: '$500', data: [500, 480, 490, 510, 495] },
-    { id: 'phone', title: 'Phone Bills', amount: '$60', data: [55, 60, 60, 62, 58] },
-    { id: 'netflix', title: 'Netflix Subscription', amount: '$15', data: [15, 15, 15, 16, 15] },
-    { id: 'insurance', title: 'Insurance', amount: '$200', data: [190, 200, 195, 205, 200] },
-    { id: 'travel', title: 'Travel', amount: '$600', data: [500, 600, 650, 580, 620] },
-    { id: 'entertainment', title: 'Entertainment', amount: '$150', data: [140, 150, 160, 145, 150] },
-    { id: 'dining', title: 'Dining Out', amount: '$220', data: [200, 210, 220, 230, 215] },
-    { id: 'health', title: 'Health Expenses', amount: '$180', data: [170, 180, 175, 185, 180] },
-    { id: 'savings', title: 'Savings Contribution', amount: '$500', data: [500, 520, 510, 530, 520] },
-    { id: 'misc', title: 'Miscellaneous', amount: '$100', data: [90, 100, 95, 110, 100] }
+    { id: 'rent', title: 'Rent', amount: '$1,200', date: '2025-04-15', data: [1200, 1200, 1200, 1250, 1200] },
+    { id: 'groceries', title: 'Groceries', amount: '$320', date: '2025-04-22', data: [300, 350, 320, 310, 330] },
+    { id: 'utilities', title: 'Utilities', amount: '$150', date: '2025-04-20', data: [140, 145, 150, 155, 150] },
+    { id: 'tuition', title: 'Tuition Fees', amount: '$2,000', date: '2025-04-01', data: [2000, 2000, 2000, 2100, 2050] },
+    { id: 'car', title: 'Car Expenses', amount: '$400', date: '2025-04-10', data: [380, 400, 390, 420, 410] },
+    { id: 'taxes', title: 'Taxes', amount: '$500', date: '2025-04-12', data: [500, 480, 490, 510, 495] },
+    { id: 'entertainment', title: 'Entertainment', amount: '$150', date: '2025-04-25', data: [140, 150, 160, 145, 150] },
+    { id: 'dining', title: 'Dining Out', amount: '$220', date: '2025-04-18', data: [200, 210, 220, 230, 215] }
   ];
-
+  
+  // Populate expense cards
   const expensesContainer = document.getElementById('expenses-container');
-
+  
   expenses.forEach(expense => {
-    // Create expense box
-    const box = document.createElement('div');
-    box.className = 'expense-box';
-    box.innerHTML = `
+    // Create expense card
+    const card = document.createElement('div');
+    card.className = 'expense-card';
+    card.innerHTML = `
       <div class="expense-title">${expense.title}</div>
       <div class="expense-amount">${expense.amount}</div>
+      <div class="expense-date">Paid on ${expense.date}</div>
+      <div class="expense-trend"></div>
     `;
-    box.onclick = () => openModal(expense.id + 'Modal');
-    expensesContainer.appendChild(box);
-
+    card.onclick = () => openModal(expense.id + 'Modal');
+    expensesContainer.appendChild(card);
+    
     // Create corresponding modal
     const modal = document.createElement('div');
     modal.className = 'modal';
@@ -145,48 +395,141 @@
     modal.innerHTML = `
       <div class="modal-content">
         <span class="close-button" onclick="closeModal('${expense.id}Modal')">&times;</span>
-        <h3>${expense.title} Overview</h3>
+        <h3>${expense.title} Expense History</h3>
+        <p>Your spending on ${expense.title.toLowerCase()} over the past 5 months</p>
         <canvas id="${expense.id}Chart"></canvas>
       </div>
     `;
     document.body.appendChild(modal);
-
-    // Create chart
-    setTimeout(() => { // Allow canvas to exist before trying to render
+    
+    // Create chart for this expense's modal
+    setTimeout(() => {
       new Chart(document.getElementById(expense.id + 'Chart'), {
         type: 'line',
         data: {
-          labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May'],
+          labels: ['January', 'February', 'March', 'April', 'May'],
           datasets: [{
             label: expense.title,
             data: expense.data,
-            backgroundColor: 'rgba(46, 204, 113, 0.2)',
-            borderColor: '#2ecc71',
+            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+            borderColor: '#3b82f6',
             borderWidth: 2,
             fill: true,
-            tension: 0.3
+            tension: 0.4
           }]
         },
         options: {
           responsive: true,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              mode: 'index',
+              intersect: false,
+              callbacks: {
+                label: function(context) {
+                  return `$${context.raw}`;
+                }
+              }
+            }
+          },
           scales: {
             y: {
-              beginAtZero: false
+              beginAtZero: false,
+              ticks: {
+                callback: function(value) {
+                  return '$' + value;
+                }
+              }
             }
           }
         }
       });
     }, 0);
   });
-
+  
+  // Create the main dashboard charts
+  setTimeout(() => {
+    // Monthly spending trends chart
+    new Chart(document.getElementById('spendingTrendsChart'), {
+      type: 'line',
+      data: {
+        labels: ['January', 'February', 'March', 'April', 'May'],
+        datasets: [{
+          label: 'Total Expenses',
+          data: [4950, 5100, 5300, 5670, 5500],
+          backgroundColor: 'rgba(59, 130, 246, 0.2)',
+          borderColor: '#3b82f6',
+          borderWidth: 3,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            callbacks: {
+              label: function(context) {
+                return `$${context.raw}`;
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: false,
+            ticks: {
+              callback: function(value) {
+                return '$' + value;
+              }
+            }
+          }
+        }
+      }
+    });
+    
+    // Expense distribution chart
+    new Chart(document.getElementById('expenseDistributionChart'), {
+      type: 'doughnut',
+      data: {
+        labels: ['Housing', 'Food', 'Education', 'Transportation', 'Utilities', 'Entertainment', 'Other'],
+        datasets: [{
+          data: [40, 15, 20, 10, 5, 5, 5],
+          backgroundColor: [
+            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280'
+          ],
+          borderWidth: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'right'
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return `${context.label}: ${context.raw}%`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }, 0);
+  
+  // Modal functions
   function openModal(id) {
     document.getElementById(id).style.display = 'flex';
   }
-
+  
   function closeModal(id) {
     document.getElementById(id).style.display = 'none';
   }
 </script>
-
-</body>
-</html>
+{% endblock %}
