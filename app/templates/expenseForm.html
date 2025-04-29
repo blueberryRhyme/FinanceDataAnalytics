@@ -27,18 +27,21 @@
     background-position: right 1rem center;
     }
 
-  /* hide default arrow */
-  select.input-box::-ms-expand {
-    display: none;
-  }
+    /* hide default arrow */
+    select.input-box::-ms-expand {
+      display: none;
+    }
+
+    .submit-btn:hover {
+      background-color: #9cff9f;
+    }
   </style>
 
 {% endblock %}
 
 
 {% block content %}
-  <h1>CALCULATE/ANALYSE EXPENSES</h1>
-
+  <h1>SUBMIT YOUR EXPENSES</h1>
 
   <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }}">
     {{ form.csrf_token }}
@@ -57,7 +60,7 @@
     <label for="date">{{ form.date.label }}</label>
     {{ form.date(class="input-box") }}
 
-    {{ form.submit(class="input-box") }}
+    {{ form.submit(class="input-box submit-btn") }}
   </form>
 
 

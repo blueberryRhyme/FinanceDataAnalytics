@@ -51,6 +51,7 @@
     {{ logout_form.submit(class="button") }}
   </form>
 
+  <div class="profile-content-container">
   <section class="profile-section">
     <h2>Financial Goals</h2>
     <div class="goal-list" id="goal-list">
@@ -80,22 +81,33 @@
       <div class="friend-item">Jia</div>
       <!-- Existing friends can be dynamically populated here -->
       {% for friend in current_user.friends %}
-        <div class="friend-item">{{ friend.username }}</div>
-      {% endfor %}
-    </div>
+      <div class="friend-item" data-user-id="{{ friend.id }}">
+        {{ friend.username }}
+        <button class="remove-friend-btn button">
+          Remove
+        </button>
+      </div>
 
-    <!-- Add New Friend Form -->
-    <!-- TODO: proceed to friends suggestions page etc -->
-    <form class="add-form" onsubmit="addFriend(event)">
-      <input type="text" id="friend-name" placeholder="Enter friend's name..." required>
-      <button type="submit" class="button">Add Friend</button>
-    </form>
+{% endfor %}
+
+    </div>
   </section>
+
+
+  <section class="expense-section">
+    <h2>Your Recent Expenses</h2>
+    <ul id="expense-list" class="goal-list">
+      <!-- JS will inject <li> items here -->
+    </ul>
+  </section>
+
+  </div>
   
   <!-- TODO: log out, user specific info etc -->
-{% endblock %}
 
-{% block script %}
+  {% endblock %}
+
+  {% block scripts %}
   <script>
     // Function to add a new goal to the list dynamically
     function addGoal(event) {
@@ -138,5 +150,56 @@
       // Clear the input field
       document.getElementById('friend-name').value = '';
     }
+
+    
+
+ 
+    document.addEventListener('DOMContentLoaded', () => {
+      fetch('/api/expenses')
+        .then(res => {
+          if (!res.ok) throw new Error(res.statusText);
+          return res.json();
+        })
+        .then(expenses => {
+          const list = document.getElementById('expense-list');
+          expenses.forEach(exp => {
+            const li = document.createElement('li');
+            li.textContent = 
+              `${exp.date} — ${exp.category}: $${exp.amount.toFixed(2)}`;
+            list.appendChild(li);
+          });
+        })
+        .catch(err => console.error('Error loading expenses:', err));
+    });
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const token = document.querySelector('meta[name="csrf-token"]').content;
+
+      document.body.addEventListener("click", async e => {
+        if (!e.target.matches(".remove-friend-btn")) return;
+
+        const btn    = e.target;
+        const item   = btn.closest(".friend-item");
+        const userId = item.dataset.userId;
+
+        try {
+          const resp = await fetch(`/remove_friend/${userId}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": token
+            }
+          });
+          if (!resp.ok) throw new Error("Failed to remove friend");
+
+          item.remove();
+        } catch (err) {
+          console.error(err);
+          alert("Could not remove friend. Try again.");
+        }
+      });
+  });
   </script>
-{% endblock %}
+  {% endblock %}
+
+

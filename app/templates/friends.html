@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+
+
+.search-box {
+      margin-bottom: 1em;
+      padding: .5em;
+      border: 1px solid #ccc;
+      border-radius: 5rem;
+      background: #F5F5F7;
+    }
+.search-box:focus {
+  outline: none;
+  border-color: #888888;
+  box-shadow: 0 0 5px rgba(80, 79, 79, 0.5);
+}
+.add-friend-btn {
+  margin-bottom: 1em;
+  padding: .5em;
+  border: 1px solid #ccc;
+  border-radius: 5rem;
+  background: #F5F5F7;
+}
+
+.add-friend-btn:hover {
+  background: #b4ffb8;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+  <h1>Find Friends</h1>
+
+  <input type="text"
+        class="search-box"
+        id="user-search-input"
+        placeholder="Type a username…">
+
+  <ul id="search-results"></ul>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const input  = document.getElementById("user-search-input");
+  const results = document.getElementById("search-results");
+
+  let lastController;
+
+  input.addEventListener("input", async () => {
+    const q = input.value.trim();
+    if (lastController) lastController.abort();
+    if (!q) {
+      results.innerHTML = "";
+      return;
+    }
+
+    lastController = new AbortController();
+    try {
+      const resp = await fetch(`/api/user_search?q=${encodeURIComponent(q)}`,
+                               { signal: lastController.signal });
+      if (!resp.ok) throw new Error("Network error");
+      const users = await resp.json();
+
+      results.innerHTML = users.map(u => {
+        if (u.is_friend) {
+          return `
+            <li>
+              ${u.username}
+              <button disabled>Friends ✓</button>
+            </li>
+          `;
+        } else {
+          return `
+            <li>
+              ${u.username}
+              <button class="add-friend-btn" data-user-id="${u.id}">
+                Add
+              </button>
+            </li>
+
+          `;
+        }
+      }).join("");
+
+
+    } catch (err) {
+      if (err.name !== "AbortError") console.error(err);
+    }
+  });
+
+  
+  document.body.addEventListener("click", async e => {
+    if (!e.target.matches(".add-friend-btn")) return;
+
+    const id    = e.target.dataset.userId;
+    const token = document.querySelector('meta[name="csrf-token"]').content;
+
+    const resp = await fetch(`/add_friend/${id}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": token
+      }
+    });
+
+    if (resp.ok) {
+      const newBtn = document.createElement("button");
+      newBtn.disabled = true;
+      newBtn.textContent = "Friends ✓";
+      e.target.replaceWith(newBtn);
+    }
+    else {
+      const err = await resp.json();
+      console.error("Error adding friend:", err);
+      alert("Error adding friend. Please try again.");
+    }
+  });
+
+});
+</script>
+{% endblock %}
