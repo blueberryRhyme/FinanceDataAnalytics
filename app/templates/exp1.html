@@ -363,14 +363,12 @@
 <script>
   const expenses = [];
 
-  // Fetch real data, normalize, then render cards + modals + charts
   async function loadExpenses() {
     try {
       const res = await fetch('/api/expenses');
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();  // [{category, history:[{date,amount},...]}, ...]
 
-      // Turn each category into an expense-like object
       data.forEach(cat => {
         const total = cat.history.reduce((sum, e) => sum + e.amount, 0);
         const id    = cat.category.replace(/\s+/g,'-').toLowerCase();
@@ -393,7 +391,6 @@
     container.innerHTML = '';
 
     expenses.forEach(expense => {
-      // --- 1) Create the expense card ---
       const card = document.createElement('div');
       card.className = 'expense-card';
       card.innerHTML = `
@@ -403,7 +400,6 @@
       card.onclick = () => openModal(expense.id + 'Modal');
       container.appendChild(card);
 
-      // --- 2) Create the modal ---
       const modal = document.createElement('div');
       modal.className = 'modal';
       modal.id = expense.id + 'Modal';
@@ -417,7 +413,6 @@
       `;
       document.body.appendChild(modal);
 
-      // --- 3) Render its chart exactly like your dummy data ---
       setTimeout(() => {
         const ctx = document.getElementById(expense.id + 'Chart').getContext('2d');
         new Chart(ctx, {
@@ -464,7 +459,6 @@
   window.addEventListener('DOMContentLoaded', loadExpenses);
 
 
-  // Your existing global charts code (unchanged)
   setTimeout(() => {
     // Monthly spending trends chart
     new Chart(document.getElementById('spendingTrendsChart'), {
