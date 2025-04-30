@@ -357,108 +357,123 @@
 </div>
 
 <!-- Modals will be generated dynamically -->
-
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <script>
-  // Sample expense data
-  const expenses = [
-    { id: 'rent', title: 'Rent', amount: '$1,200', date: '2025-04-15', data: [1200, 1200, 1200, 1250, 1200] },
-    { id: 'groceries', title: 'Groceries', amount: '$320', date: '2025-04-22', data: [300, 350, 320, 310, 330] },
-    { id: 'utilities', title: 'Utilities', amount: '$150', date: '2025-04-20', data: [140, 145, 150, 155, 150] },
-    { id: 'tuition', title: 'Tuition Fees', amount: '$2,000', date: '2025-04-01', data: [2000, 2000, 2000, 2100, 2050] },
-    { id: 'car', title: 'Car Expenses', amount: '$400', date: '2025-04-10', data: [380, 400, 390, 420, 410] },
-    { id: 'taxes', title: 'Taxes', amount: '$500', date: '2025-04-12', data: [500, 480, 490, 510, 495] },
-    { id: 'entertainment', title: 'Entertainment', amount: '$150', date: '2025-04-25', data: [140, 150, 160, 145, 150] },
-    { id: 'dining', title: 'Dining Out', amount: '$220', date: '2025-04-18', data: [200, 210, 220, 230, 215] }
-  ];
-  
-  // Populate expense cards
-  const expensesContainer = document.getElementById('expenses-container');
-  
-  expenses.forEach(expense => {
-    // Create expense card
-    const card = document.createElement('div');
-    card.className = 'expense-card';
-    card.innerHTML = `
-      <div class="expense-title">${expense.title}</div>
-      <div class="expense-amount">${expense.amount}</div>
-      <div class="expense-date">Paid on ${expense.date}</div>
-      <div class="expense-trend"></div>
-    `;
-    card.onclick = () => openModal(expense.id + 'Modal');
-    expensesContainer.appendChild(card);
-    
-    // Create corresponding modal
-    const modal = document.createElement('div');
-    modal.className = 'modal';
-    modal.id = expense.id + 'Modal';
-    modal.innerHTML = `
-      <div class="modal-content">
-        <span class="close-button" onclick="closeModal('${expense.id}Modal')">&times;</span>
-        <h3>${expense.title} Expense History</h3>
-        <p>Your spending on ${expense.title.toLowerCase()} over the past 5 months</p>
-        <canvas id="${expense.id}Chart"></canvas>
-      </div>
-    `;
-    document.body.appendChild(modal);
-    
-    // Create chart for this expense's modal
-    setTimeout(() => {
-      new Chart(document.getElementById(expense.id + 'Chart'), {
-        type: 'line',
-        data: {
-          labels: ['January', 'February', 'March', 'April', 'May'],
-          datasets: [{
-            label: expense.title,
-            data: expense.data,
-            backgroundColor: 'rgba(59, 130, 246, 0.2)',
-            borderColor: '#3b82f6',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.4
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: {
-              display: false
-            },
-            tooltip: {
-              mode: 'index',
-              intersect: false,
-              callbacks: {
-                label: function(context) {
-                  return `$${context.raw}`;
+  const expenses = [];
+
+  // Fetch real data, normalize, then render cards + modals + charts
+  async function loadExpenses() {
+    try {
+      const res = await fetch('/api/expenses');
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();  // [{category, history:[{date,amount},...]}, ...]
+
+      // Turn each category into an expense-like object
+      data.forEach(cat => {
+        const total = cat.history.reduce((sum, e) => sum + e.amount, 0);
+        const id    = cat.category.replace(/\s+/g,'-').toLowerCase();
+        expenses.push({
+          id,
+          title: cat.category,
+          amount: total,
+          history: cat.history
+        });
+      });
+
+      renderExpenses();
+    } catch (err) {
+      console.error('Failed to load expenses:', err);
+    }
+  }
+
+  function renderExpenses() {
+    const container = document.getElementById('expenses-container');
+    container.innerHTML = '';
+
+    expenses.forEach(expense => {
+      // --- 1) Create the expense card ---
+      const card = document.createElement('div');
+      card.className = 'expense-card';
+      card.innerHTML = `
+        <div class="expense-title">${expense.title}</div>
+        <div class="expense-amount">$${expense.amount.toFixed(2)}</div>
+      `;
+      card.onclick = () => openModal(expense.id + 'Modal');
+      container.appendChild(card);
+
+      // --- 2) Create the modal ---
+      const modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.id = expense.id + 'Modal';
+      modal.innerHTML = `
+        <div class="modal-content">
+          <span class="close-button" onclick="closeModal('${expense.id}Modal')">&times;</span>
+          <h3>${expense.title} Expense History</h3>
+          <p>Your spending on ${expense.title.toLowerCase()} over time</p>
+          <canvas id="${expense.id}Chart"></canvas>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // --- 3) Render its chart exactly like your dummy data ---
+      setTimeout(() => {
+        const ctx = document.getElementById(expense.id + 'Chart').getContext('2d');
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: expense.history.map(e => e.date),
+            datasets: [{
+              label: expense.title,
+              data:  expense.history.map(e => e.amount),
+              backgroundColor: 'rgba(59, 130, 246, 0.2)',
+              borderColor: '#3b82f6',
+              borderWidth: 2,
+              fill: true,
+              tension: 0.4
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                mode: 'index',
+                intersect: false,
+                callbacks: {
+                  label: ctx => `$${ctx.raw}`
                 }
               }
-            }
-          },
-          scales: {
-            y: {
-              beginAtZero: false,
-              ticks: {
-                callback: function(value) {
-                  return '$' + value;
+            },
+            scales: {
+              y: {
+                beginAtZero: false,
+                ticks: {
+                  callback: v => '$' + v
                 }
               }
             }
           }
-        }
-      });
-    }, 0);
-  });
-  
-  // Create the main dashboard charts
+        });
+      }, 0);
+    });
+  }
+
+  // Kick it off on page load
+  window.addEventListener('DOMContentLoaded', loadExpenses);
+
+
+  // Your existing global charts code (unchanged)
   setTimeout(() => {
     // Monthly spending trends chart
     new Chart(document.getElementById('spendingTrendsChart'), {
       type: 'line',
       data: {
-        labels: ['January', 'February', 'March', 'April', 'May'],
+        labels: ['January','February','March','April','May'],
         datasets: [{
           label: 'Total Expenses',
-          data: [4950, 5100, 5300, 5670, 5500],
+          data: [4950,5100,5300,5670,5500],
           backgroundColor: 'rgba(59, 130, 246, 0.2)',
           borderColor: '#3b82f6',
           borderWidth: 3,
@@ -473,9 +488,7 @@
             mode: 'index',
             intersect: false,
             callbacks: {
-              label: function(context) {
-                return `$${context.raw}`;
-              }
+              label: ctx => `$${ctx.raw}`
             }
           }
         },
@@ -483,24 +496,22 @@
           y: {
             beginAtZero: false,
             ticks: {
-              callback: function(value) {
-                return '$' + value;
-              }
+              callback: v => '$' + v
             }
           }
         }
       }
     });
-    
+
     // Expense distribution chart
     new Chart(document.getElementById('expenseDistributionChart'), {
       type: 'doughnut',
       data: {
-        labels: ['Housing', 'Food', 'Education', 'Transportation', 'Utilities', 'Entertainment', 'Other'],
+        labels: ['Housing','Food','Education','Transportation','Utilities','Entertainment','Other'],
         datasets: [{
-          data: [40, 15, 20, 10, 5, 5, 5],
+          data: [40,15,20,10,5,5,5],
           backgroundColor: [
-            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6b7280'
+            '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#6b7280'
           ],
           borderWidth: 0
         }]
@@ -508,28 +519,24 @@
       options: {
         responsive: true,
         plugins: {
-          legend: {
-            position: 'right'
-          },
+          legend: { position: 'right' },
           tooltip: {
             callbacks: {
-              label: function(context) {
-                return `${context.label}: ${context.raw}%`;
-              }
+              label: ctx => `${ctx.label}: ${ctx.raw}%`
             }
           }
         }
       }
     });
   }, 0);
-  
-  // Modal functions
+
+  // Modal open/close helpers
   function openModal(id) {
     document.getElementById(id).style.display = 'flex';
   }
-  
   function closeModal(id) {
     document.getElementById(id).style.display = 'none';
   }
 </script>
+
 {% endblock %}

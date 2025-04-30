@@ -20,7 +20,7 @@
   <h1>Log Your Expense</h1>
 
   <div class="card">
-    <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }}">
+    <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }} " enctype="multipart/form-data">
       {{ form.csrf_token }}
 
       <label for="amount">{{ form.amount.label }}</label>
@@ -38,6 +38,13 @@
       {{ form.date(class="input-box") }}
 
       {{ form.submit(class="button") }}
+
+      <label for="csv_file">Or upload CSV of expenses</label>
+      <input type="file" name="csv_file"
+             accept=".csv"
+             class="input-box"/>
+
+             
     </form>
   </div>
 </div>
