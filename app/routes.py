@@ -221,3 +221,4 @@ def categorize_by_vendor(desc: str):
         if vendor in text:
             return cat
     return None
+

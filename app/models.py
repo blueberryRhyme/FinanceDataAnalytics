@@ -1,6 +1,12 @@
 from . import db
 from flask_login import UserMixin
 
+friends = db.Table(
+    "friends",
+    db.Column("user_id",   db.Integer, db.ForeignKey("user.id"), primary_key=True),
+    db.Column("friend_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
+)
+
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
@@ -20,3 +26,4 @@ class Expense(db.Model):
     category = db.Column(db.String(50), nullable=False)
 
     user = db.relationship('User', back_populates='expenses')
+
