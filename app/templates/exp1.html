@@ -363,11 +363,16 @@
 <script>
   const expenses = [];
 
-  async function loadExpenses() {
+  async function loadTransactions() {
     try {
-      const res = await fetch('/api/expenses');
+      const res = await fetch('/api/transaction');
       if (!res.ok) throw new Error(res.statusText);
-      const data = await res.json();  // [{category, history:[{date,amount},...]}, ...]
+      const data = await res.json();  // [{category, history:[{date,amount,type,direction?},...]}, ...]
+
+     // TODO: only keep categories whose entries are of type 'xxx'
+    //  const expenseCats = data.filter(cat =>
+    //   cat.history.some(entry => entry.type === 'expense')
+    //  );
 
       data.forEach(cat => {
         const total = cat.history.reduce((sum, e) => sum + e.amount, 0);
@@ -380,7 +385,7 @@
         });
       });
 
-      renderExpenses();
+    renderExpenses();
     } catch (err) {
       console.error('Failed to load expenses:', err);
     }
@@ -456,7 +461,7 @@
   }
 
   // Kick it off on page load
-  window.addEventListener('DOMContentLoaded', loadExpenses);
+  window.addEventListener('DOMContentLoaded', loadTransactions);
 
 
   setTimeout(() => {
