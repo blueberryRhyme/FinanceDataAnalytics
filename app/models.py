@@ -10,11 +10,6 @@ friends_table = db.Table(
 )
 
 
-friends = db.Table(
-    "friends",
-    db.Column("user_id",   db.Integer, db.ForeignKey("user.id"), primary_key=True),
-    db.Column("friend_id", db.Integer, db.ForeignKey("user.id"), primary_key=True),
-)
 
 class User(db.Model, UserMixin):
     __tablename__ = 'users'
