@@ -5,72 +5,42 @@
   <!-- give JS access to the token  -->
   <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>{% block title %}$$$${% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
   <style>
-
-  html, body {
-    height: 100%;     
-    margin: 0;      
-  }
-
-
-    body {
-      display: flex;
-      flex-direction: column;
-      font-family: Arial, sans-serif;
-      padding: 0;
-      background-color: #f4f4f4;
-    }
-    .site-header {
-      position: sticky;
-      top: 0;
-      background-color: #edffc6;
-      color: rgb(0, 0, 0);
-      text-align: center;
-      padding: 1em 0;
-      z-index: 1000; 
-    }
-
-
-    ::selection {
-        color: #fff;
-        background: #151515;
-    }
-
+    /* Base-specific styles that aren't in main.css */
     .site-footer{
+      position: fixed;
+      left: 0px;
+      bottom: 0px;
+      width: 100%;
 
-    background-color: #edffc6;
-    color: rgb(0, 0, 0);
-    text-align: center;
-    left:0px;
-    bottom:0px;
-    width:100%;
-    padding: 1em 0;
     }
+    
     .site-content {
       padding: 2em;
       flex: 1;
-    }
-    nav a {
-      color: rgb(0, 0, 0);
-      text-decoration: none;
-      margin: 0 1em;
-    }
-    nav a:hover {
-      text-decoration: underline;
-      background-color: rgb(255, 237, 103);
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+
     }
   </style>
     {% block head %}{% endblock %}
 
 </head>
 <body>
-
   <header class="site-header">
-    <nav>
-      <a href="{{ url_for('main.expenseForm') }}">Log Expense</a> |
-      <a href="{{ url_for('main.profile') }}">Profile</a> |
-      <a href="{{ url_for('main.friends') }}">Friends</a> 
-    </nav>
+
+    <div class="navigation-container">
+      <nav class="main-nav">
+        <a href="{{ url_for('main.exp1') }}" class="nav-link">Dashboard</a>
+        <a href="{{ url_for('main.expenseForm') }}" class="nav-link">Log Expense</a>
+        <a href="{{ url_for('main.profile') }}" class="nav-link">Profile</a>
+        <a href="{{ url_for('main.friends') }}" class="nav-link">Friends</a>
+      </nav>
+    </div>
+
   </header>
 
   <main class="site-content">

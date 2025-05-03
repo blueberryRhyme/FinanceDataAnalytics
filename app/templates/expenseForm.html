@@ -1,67 +1,56 @@
 {% extends "base.html" %}
 
+{% block title %}Log Expense{% endblock %}
+
 {% block head %}
-
-  <style>
-    #other-category-container { display: none; margin-top: .5em; }
-    .form-wrapper {
-      display: flex;
-      flex-direction: column;
-      width: 300px;
-      margin: auto;
-    }
-    .input-box {
-      margin-bottom: 1em;
-      padding: .5em;
-      border: 1px solid #ccc;
-      border-radius: 5rem;
-      background: #F5F5F7;
-    }
-    .input-box:focus {
-      outline: none;
-      border-color: #888888;
-      box-shadow: 0 0 5px rgba(80, 79, 79, 0.5);
-    }
-    select.input-box {
-    background-repeat: no-repeat;
-    background-position: right 1rem center;
-    }
-
-    /* hide default arrow */
-    select.input-box::-ms-expand {
-      display: none;
-    }
-
-    .submit-btn:hover {
-      background-color: #9cff9f;
-    }
-  </style>
+<!-- No additional styles needed here as they're now in main.css -->
+<style>
+  /* Expense form specific styles that aren't in main.css */
+  #other-category-container {
+    display: none;
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+</style>
 
 {% endblock %}
 
 
 {% block content %}
-  <h1>SUBMIT YOUR EXPENSES</h1>
+<div class="page-container">
+  <h1>Log Your Expense</h1>
 
-  <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }}">
-    {{ form.csrf_token }}
+  <div class="card">
+    <form id="expense-form" class="form-wrapper" method="POST" action="{{ url_for('main.expenseForm') }} " enctype="multipart/form-data">
+      {{ form.csrf_token }}
 
-    <label for="amount">{{ form.amount.label }}</label>
-    {{ form.amount(class="input-box") }}
+      <label for="amount">{{ form.amount.label }}</label>
+      {{ form.amount(class="input-box", placeholder="Enter amount") }}
 
-    <label for="category">{{ form.category.label }}</label>
-    {{ form.category(class="input-box") }}
 
-    <div id="other-category-container" style="display: none;">
-      <label for="other_category">{{ form.other_category.label }}</label>
-      {{ form.other_category(class="input-box") }}
-    </div>
+      <label for="category">{{ form.category.label }}</label>
+      {{ form.category(class="input-box") }}
 
-    <label for="date">{{ form.date.label }}</label>
-    {{ form.date(class="input-box") }}
+      <div id="other-category-container">
+        <label for="other_category">{{ form.other_category.label }}</label>
+        {{ form.other_category(class="input-box", placeholder="Specify category") }}
+      </div>
 
-    {{ form.submit(class="input-box submit-btn") }}
-  </form>
+      <label for="date">{{ form.date.label }}</label>
+      {{ form.date(class="input-box") }}
+
+      {{ form.submit(class="button") }}
+
+      <label for="csv_file">Or upload CSV of expenses</label>
+      <input type="file" name="csv_file"
+             accept=".csv"
+             class="input-box"/>
+
+             
+    </form>
+  </div>
+</div>
+
 
 
   <script>
@@ -72,6 +61,21 @@
       otherDiv.style.display = cat.value === 'other' ? 'block' : 'none';
     });
 
+    // Initialize date field to today's date if not already set
+    window.addEventListener('DOMContentLoaded', () => {
+      const dateField = document.getElementById('date');
+      if (!dateField.value) {
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        let mm = today.getMonth() + 1;
+        let dd = today.getDate();
+        
+        if (dd < 10) dd = '0' + dd;
+        if (mm < 10) mm = '0' + mm;
+        
+        dateField.value = yyyy + '-' + mm + '-' + dd;
+      }
+    });
   </script>
   
 {% endblock %}

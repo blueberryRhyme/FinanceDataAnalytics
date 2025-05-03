@@ -8,31 +8,22 @@ friends = db.Table(
 )
 
 class User(db.Model, UserMixin):
+    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(150), unique=True, nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
-    friends = db.relationship(
-    "User",
-    secondary=friends,
-    primaryjoin=(friends.c.user_id    == id),
-    secondaryjoin=(friends.c.friend_id == id),
-    backref="friended_by",
-    lazy="dynamic"
-    )
+    expenses = db.relationship('Expense', back_populates='user', lazy='dynamic')
+
 
 
 class Expense(db.Model):
-    id        = db.Column(db.Integer, primary_key=True)
-    amount    = db.Column(db.Float,   nullable=False)
-    category  = db.Column(db.String(64), nullable=False)
-    date      = db.Column(db.Date,    nullable=False)
-    user_id   = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    __tablename__ = 'expenses'
+    id       = db.Column(db.Integer, primary_key=True)
+    user_id  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    date     = db.Column(db.Date,   nullable=False)
+    amount   = db.Column(db.Float,  nullable=False)
+    category = db.Column(db.String(50), nullable=False)
 
-    def to_dict(self):
-        return {
-            "id":       self.id,
-            "amount":   self.amount,
-            "category": self.category,
-            "date":     self.date.isoformat(),
-        }
+    user = db.relationship('User', back_populates='expenses')
+
