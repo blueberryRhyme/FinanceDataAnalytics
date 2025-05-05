@@ -5,9 +5,11 @@ from io import TextIOWrapper
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
 from flask_login import login_user, logout_user, current_user, login_required
 from . import db, bcrypt
-from .models import User, Transaction
+from .models import User, UserSettings, Transaction
 from app.forms import TransactionForm, RegistrationForm, LoginForm, LogoutForm
-from datetime import datetime
+from datetime import datetime,date, timedelta
+
+from sqlalchemy import func, extract
 
 main = Blueprint('main', __name__)
 
@@ -20,8 +22,49 @@ def home():
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    # You could fetch expenses here or use JavaScript to load them
-    return render_template('dashboard.html')
+
+    today = date.today()
+    ym_this = (today.year, today.month)
+    last_month_date = (today.replace(day=1) - timedelta(days=1))
+    ym_last = (last_month_date.year, last_month_date.month)
+
+    # 1) TOTAL EXPENSES
+    total_exp_this  = sum_category(None, *ym_this, tx_type="expense")   # pass None to mean “all categories”
+    total_exp_last  = sum_category(None, *ym_last, tx_type="expense")
+    exp_pct_change  = ((total_exp_this - total_exp_last) / total_exp_last * 100) \
+                        if total_exp_last else 0
+
+    # 2) SAVINGS CATEGORY
+    savings_this = sum_category('savings', *ym_this, tx_type='income')
+    savings_last = sum_category('savings', *ym_last, tx_type='income')
+    sav_pct_change = ((savings_this - savings_last) / savings_last * 100) if savings_last else 0
+    #   DEBUG
+    print(f'saving: {savings_this} and {sav_pct_change}')
+
+
+    # 3) BUDGET 
+
+    if current_user.settings is None:
+        settings = UserSettings(user_id=current_user.id)
+        db.session.add(settings)
+        db.session.commit()
+    else:
+        settings = current_user.settings
+
+    budget = settings.monthly_budget
+
+    budget = current_user.settings.monthly_budget
+    remaining = budget - total_exp_this
+    rem_pct   = (remaining / budget * 100) if budget else 0
+
+    return render_template('dashboard.html',
+        total_expenses       = round(total_exp_this, 2),
+        exp_pct_change       = round(exp_pct_change, 1),
+        savings              = round(savings_this, 2),
+        sav_pct_change       = round(sav_pct_change, 1),
+        budget               = round(budget, 2),
+        rem_pct              = round(rem_pct, 1),
+    )
 
 @main.route('/register', methods=['GET','POST'])
 def register():
@@ -32,6 +75,7 @@ def register():
         user = User(username=form.username.data,
                     email=form.email.data,
                     password=pw_hash)
+        user.settings = UserSettings()
         db.session.add(user)
         db.session.commit()
 
@@ -100,7 +144,7 @@ def transactionForm():
         for row in reader:
             dt_raw  = row[mapping['date']].strip()
             amt_raw = row[mapping['amount']].strip().replace(',', '')
-            desc    = row[mapping['description']].strip().lower()
+            desc    = row[mapping['description']].strip()
 
             # parse date DD/MM/YYYY
             try:
@@ -117,7 +161,7 @@ def transactionForm():
                 continue
 
             # determine tx_type + category + direction
-            if 'transfer' in desc:
+            if 'transfer' in desc.lower():
                 tx_type  = 'transfer'
                 direction= 'in' if amt >= 0 else 'out'
                 amt      = abs(amt)
@@ -137,6 +181,7 @@ def transactionForm():
                 date               = dt_obj,
                 amount             = amt,
                 category           = cat,
+                description        = desc,
                 type               = tx_type,
                 transfer_direction = direction
             )
@@ -153,6 +198,7 @@ def transactionForm():
         tx_type  = form.type.data
         amt       = float(form.amount.data)
         dt        = form.date.data
+        desc      = form.description.data.strip()
 
         # build category (with "other" override)
         if form.category.data == 'other':
@@ -172,6 +218,7 @@ def transactionForm():
             amount             = abs(amt),
             category           = cat,
             type               = tx_type,
+            description        = desc,
             transfer_direction = direction
         )
         db.session.add(tx)
@@ -226,6 +273,7 @@ def friends():
 
 
 
+#   +++++++ API endpoints +++++++
 #   grouped by category
 @main.route('/api/transaction')
 @login_required
@@ -243,6 +291,7 @@ def api_transactions():
             'date':   t.date.isoformat(),
             'amount': float(t.amount),     # convert Decimal to float for JSON
             'type':   t.type.value,              # expense | income | transfer
+            'description': t.description,   
             **({'direction': t.transfer_direction} if t.transfer_direction else {})
         })
 
@@ -257,26 +306,7 @@ def api_transactions():
 
     return jsonify(data)
 
-VENDOR_MAP = {
-    "woolworth":   "Groceries",
-    "coles":       "Groceries",
-    "uber":        "Transport",
-    "transperth":   "Transport",
-    "shell":       "Fuel",
-    "netflix":     "Entertainment",
-    "balthazar":   "Restaurant",
-    "interest":    "Interest",
-    "savings":     "Savings",
-}
 
-
-def categorize_by_vendor(desc: str):
-    text = desc.lower()
-    for vendor, cat in VENDOR_MAP.items():
-
-        if re.search(rf'\b{re.escape(vendor)}\b', text):
-            return cat
-    return None
 
 @main.route("/api/user_search")
 @login_required
@@ -298,3 +328,46 @@ def api_user_search():
             "is_friend":  u.id in my_friend_ids
         })
     return jsonify(payload)
+
+
+
+
+#   +++++++ helper functions +++++++
+VENDOR_MAP = {
+    "woolworth":   "Groceries",
+    "coles":       "Groceries",
+    "uber":        "Transport",
+    "transperth":   "Transport",
+    "shell":       "Fuel",
+    "netflix":     "Entertainment",
+    "balthazar":   "Restaurant",
+    "interest":    "Interest",
+    "savings":     "Savings",
+}
+
+
+def categorize_by_vendor(desc: str):
+    text = desc.lower()
+    for vendor, cat in VENDOR_MAP.items():
+
+        if re.search(rf'\b{re.escape(vendor)}\b', text):
+            return cat
+    return None
+
+
+#  get sum of a category in a given year+month
+def sum_category(cat_name, year, month, tx_type='expense'):
+    q = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
+        Transaction.user_id == current_user.id,
+        extract('year', Transaction.date) == year,
+        extract('month', Transaction.date) == month,
+    )
+    if cat_name:
+        q = q.filter(Transaction.category == cat_name)
+    if tx_type:
+        q = q.filter(Transaction.type == tx_type)
+    return q.scalar()
+
+
+
+

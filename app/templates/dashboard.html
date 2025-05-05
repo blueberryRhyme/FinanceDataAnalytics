@@ -301,46 +301,81 @@
     <h1>Financial Dashboard</h1>
     <p class="page-description">Track your expenses, monitor spending trends, and manage your finances</p>
   </div>
-  
+ 
+
+  {% set exp_positive = exp_pct_change|float >= 0 %}
+  {% set sav_positive = sav_pct_change|float >= 0 %}
+
   <!-- Summary cards -->  
   <div class="summary-cards">
-    <div class="summary-card">
-      <div class="summary-title">Total Expenses</div>
-      <div class="summary-value">$5,670</div>
-      <div class="summary-change change-negative">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/>
-        </svg>
-        12% from last month
+      <!-- Total Expenses -->
+      <div class="summary-card">
+        <div class="summary-title">Total Expenses</div>
+        <div class="summary-value">${{ total_expenses }}</div>
+        <div class="summary-change {{ 'change-positive' if exp_positive else 'change-negative' }}">
+          {% if exp_positive %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 12a.5.5 0 0 1-.5-.5V5.707L5.354
+                 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5
+                 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5
+                 5.707V11.5a.5.5 0 0 1-.5.5z"></path>
+          </svg>
+          {% else %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+              d="M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5
+                 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5
+                 0 0 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z"/>
+          </svg>
+          {% endif %}
+          {{ exp_pct_change }}% from last month
+        </div>
       </div>
-    </div>
     
-    <div class="summary-card success">
-      <div class="summary-title">Savings</div>
-      <div class="summary-value">$1,250</div>
-      <div class="summary-change change-positive">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-          <path fill-rule="evenodd" d="M8 12a.5.5 0 0 0 .5-.5V5.707l2.146 2.147a.5.5 0 0 0 .708-.708l-3-3a.5.5 0 0 0-.708 0l-3 3a.5.5 0 1 0 .708.708L7.5 5.707V11.5a.5.5 0 0 0 .5.5z"/>
-        </svg>
-        8% from last month
+      <!-- Savings -->
+      <div class="summary-card success">
+        <div class="summary-title">Savings</div>
+        <div class="summary-value">${{ savings }}</div>
+        <div class="summary-change {{ 'change-positive' if sav_positive else 'change-negative' }}">
+          {% if sav_positive %}
+
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 12a.5.5 0 0 1-.5-.5V5.707L5.354
+                 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5
+                 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5
+                 5.707V11.5a.5.5 0 0 1-.5.5z"></path>
+          </svg>
+          {% else %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+              d="M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5
+                 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5
+                 0 0 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z"/>
+          </svg>
+
+          {% endif %}
+          {{ sav_pct_change }}% from last month
+        </div>
       </div>
-    </div>
     
+  
     <div class="summary-card warning">
       <div class="summary-title">Monthly Budget</div>
-      <div class="summary-value">$7,500</div>
-      <div class="summary-change">
-        24% remaining
+      <div class="summary-value">${{ budget }}</div>
+      <div class="summary-change" id="budget-change">
+        {{ rem_pct }}% remaining
       </div>
     </div>
   </div>
-
-  <!-- Expense grid -->  
-  <h2 style="align-self: flex-start; margin-left: 20px; color: var(--text-primary); font-size: 24px; margin-bottom: 16px;">Recent Expenses</h2>
-  <div class="expense-grid" id="expenses-container">
-    <!-- Expense cards will be generated here dynamically -->
+  
+  {% for section in ['Expense', 'Income', 'Transfer'] %}
+  <h2 style="align-self: flex-start; margin-left: 20px; color: var(--text-primary); font-size: 24px; margin-bottom: 16px;">
+    Recent {{ section }}s
+  </h2>
+  <div class="expense-grid" id="{{ section|lower }}-container">
+    <!-- cards will be rendered here -->
   </div>
-
+  {% endfor %}
 <!-- Modals will be generated dynamically -->
 
   <!-- Chart sections -->  
@@ -362,6 +397,15 @@
 <script>
   // categories = grouped-by-category for Recent
   const categories     = [];
+
+
+  const categoriesByType = {
+    expense: [],
+    income:  [],
+    transfer:[]
+  };
+
+
   // expenseEntries = flat list of expense-only entries for charts
   const expenseEntries = [];
 
@@ -372,34 +416,44 @@
       const data = await res.json();  // [ {category, history:[…]}, … ]
 
       data.forEach(cat => {
-        // keep only expense‐type entries
-        const expenseHistory = cat.history.filter(e => e.type === 'expense');
-        if (!expenseHistory.length) return;    // skip categories with no expenses
+      ['expense','income','transfer'].forEach(type => {
+        const hist = cat.history.filter(e => e.type === type);
+        if (!hist.length) return;
 
-        // total up just those expenses
-        const total = expenseHistory.reduce((sum, e) => sum + e.amount, 0);
-        const id    = cat.category.replace(/\s+/g, '-').toLowerCase();
-        categories.push({ id, title: cat.category, amount: total, history: expenseHistory });
+        // total up
+        const total = hist.reduce((sum, e) => sum + e.amount, 0);
+        const id    = `${type}-${cat.category}`.replace(/\s+/g,'-').toLowerCase();
 
-        // also collect them for your charts
-        expenseHistory.forEach(e => {
-          expenseEntries.push({ date: e.date, amount: e.amount, category: cat.category });
+        categoriesByType[type].push({
+          id, title: cat.category, amount: total, history: hist
         });
-      });
 
-      renderRecent();
-      renderTrendChart();
-      renderDistributionChart();
+        // only collect expenses for the global charts
+        if (type === 'expense') {
+          hist.forEach(e => expenseEntries.push({
+            date: e.date, amount: e.amount, category: cat.category
+          }));
+        }
+      });
+    });
+
+    // render each section
+    renderRecent('expense');
+    renderRecent('income');
+    renderRecent('transfer');
+    renderTrendChart();
+    renderDistributionChart();
+
     } catch (err) {
       console.error('Failed to load transactions:', err);
     }
   }
-
-  function renderRecent() {
-    const container = document.getElementById('expenses-container');
+  
+ function renderRecent(type) {
+    const container = document.getElementById(`${type}-container`);
     container.innerHTML = '';
-
-    categories.forEach(cat => {
+    categoriesByType[type].forEach(cat => {
+      // card
       const card = document.createElement('div');
       card.className = 'expense-card';
       card.innerHTML = `
@@ -408,23 +462,22 @@
       `;
       card.onclick = () => openModal(cat.id + 'Modal');
       container.appendChild(card);
-      // 2) build the matching modal (once)
+
+      // modal (once)
       if (!document.getElementById(cat.id + 'Modal')) {
         const modal = document.createElement('div');
         modal.className = 'modal';
         modal.id = cat.id + 'Modal';
-        // each modal shows its history chart
         modal.innerHTML = `
           <div class="modal-content">
             <span class="close-button" onclick="closeModal('${cat.id}Modal')">&times;</span>
-            <h3>${cat.title} Expense History</h3>
-            <p>Your spending on ${cat.title.toLowerCase()} over time</p>
+            <h3>${cat.title} ${type.charAt(0).toUpperCase()+type.slice(1)} History</h3>
             <canvas id="${cat.id}Chart"></canvas>
           </div>
         `;
         document.body.appendChild(modal);
 
-        // initialize that chart
+        // draw chart
         setTimeout(() => {
           const ctx = document.getElementById(cat.id + 'Chart').getContext('2d');
           new Chart(ctx, {
@@ -448,7 +501,13 @@
                 tooltip: {
                   mode: 'index',
                   intersect: false,
-                  callbacks: { label: ctx => `$${ctx.raw}` }
+                  callbacks: {
+                    label: ctx => {
+                      const entry = cat.history[ctx.dataIndex];
+                      // show both amount & description if present
+                      return `${entry.description || ''}: $${ctx.raw}`;
+                    }
+                  }
                 }
               },
               scales: {

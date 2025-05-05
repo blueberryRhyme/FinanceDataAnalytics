@@ -18,6 +18,15 @@ class User(db.Model, UserMixin):
     username = db.Column(db.String(150), unique=True, nullable=False)
     email    = db.Column(db.String(150), unique=True, nullable=False)
     password = db.Column(db.String(150), nullable=False)
+
+
+    settings  = db.relationship(
+        'UserSettings',
+        uselist=False,
+        back_populates='user',
+        cascade='all, delete-orphan'
+    )
+
     transactions = db.relationship(
         'Transaction',
         back_populates='user',
@@ -34,6 +43,25 @@ class User(db.Model, UserMixin):
         lazy="dynamic"
     )
 
+    
+
+class UserSettings(db.Model):
+    __tablename__ = 'user_settings'
+
+    user_id         = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete='CASCADE'),
+        primary_key=True
+    )
+    monthly_budget = db.Column(db.Numeric(10,2), nullable=False, default=0.00)
+    currency       = db.Column(db.String(3), nullable=False, default='AUD')
+    timezone       = db.Column(db.String(50), nullable=False, default='Australia/Perth')
+
+    user            = db.relationship(
+        'User',
+        back_populates='settings',
+        uselist=False
+    )
 
 
 class TransactionType(enum.Enum):
@@ -60,7 +88,11 @@ class Transaction(db.Model):
     )
     transfer_direction = db.Column(db.Enum('in','out', name='transfer_dir'), nullable=True)
 
+    description        = db.Column(db.String(255), nullable=True)
+
     user               = db.relationship(
         'User',
         back_populates='transactions'
     )
+
+    

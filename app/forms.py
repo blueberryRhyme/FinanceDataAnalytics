@@ -44,6 +44,7 @@ class TransactionForm(FlaskForm):
             ('shopping', 'Shopping'),
             ('health',   'Health'),
             ('salary',   'Salary'),
+            ('savings',  'Savings'),
             ('refund',   'Refund'),
             ('other',    'Other'),
         ],
@@ -51,6 +52,10 @@ class TransactionForm(FlaskForm):
     )
     other_category = StringField(
         'If “Other,” please specify',
+        validators=[Optional()]
+    )
+    description = StringField(
+        'Description',
         validators=[Optional()]
     )
 

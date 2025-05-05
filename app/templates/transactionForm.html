@@ -58,6 +58,11 @@
         {% for err in form.other_category.errors %}<div class="error">{{ err }}</div>{% endfor %}
       </div>
 
+      <label for="description">{{ form.description.label }}</label>
+      {{ form.description(class="input-box", placeholder="Enter Description") }}
+      {% for err in form.description.errors %}<div class="error">{{ err }}</div>{% endfor %}
+
+
       <!-- Date -->
       <label for="date">{{ form.date.label }}</label>
       {{ form.date(class="input-box") }}
