@@ -359,183 +359,159 @@
 <!-- Modals will be generated dynamically -->
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
 <script>
-  const expenses = [];
+  // categories = grouped-by-category for Recent
+  const categories     = [];
+  // expenseEntries = flat list of expense-only entries for charts
+  const expenseEntries = [];
 
   async function loadTransactions() {
     try {
-      const res = await fetch('/api/transaction');
+      const res  = await fetch('/api/transaction');
       if (!res.ok) throw new Error(res.statusText);
-      const data = await res.json();  // [{category, history:[{date,amount,type,direction?},...]}, ...]
-
-     // TODO: only keep categories whose entries are of type 'xxx'
-    //  const expenseCats = data.filter(cat =>
-    //   cat.history.some(entry => entry.type === 'expense')
-    //  );
+      const data = await res.json();  // [ {category, history:[…]}, … ]
 
       data.forEach(cat => {
-        const total = cat.history.reduce((sum, e) => sum + e.amount, 0);
-        const id    = cat.category.replace(/\s+/g,'-').toLowerCase();
-        expenses.push({
-          id,
-          title: cat.category,
-          amount: total,
-          history: cat.history
+        // keep only expense‐type entries
+        const expenseHistory = cat.history.filter(e => e.type === 'expense');
+        if (!expenseHistory.length) return;    // skip categories with no expenses
+
+        // total up just those expenses
+        const total = expenseHistory.reduce((sum, e) => sum + e.amount, 0);
+        const id    = cat.category.replace(/\s+/g, '-').toLowerCase();
+        categories.push({ id, title: cat.category, amount: total, history: expenseHistory });
+
+        // also collect them for your charts
+        expenseHistory.forEach(e => {
+          expenseEntries.push({ date: e.date, amount: e.amount, category: cat.category });
         });
       });
 
-    renderExpenses();
+      renderRecent();
+      renderTrendChart();
+      renderDistributionChart();
     } catch (err) {
-      console.error('Failed to load expenses:', err);
+      console.error('Failed to load transactions:', err);
     }
   }
 
-  function renderExpenses() {
+  function renderRecent() {
     const container = document.getElementById('expenses-container');
     container.innerHTML = '';
 
-    expenses.forEach(expense => {
+    categories.forEach(cat => {
       const card = document.createElement('div');
       card.className = 'expense-card';
       card.innerHTML = `
-        <div class="expense-title">${expense.title}</div>
-        <div class="expense-amount">$${expense.amount.toFixed(2)}</div>
+        <div class="expense-title">${cat.title}</div>
+        <div class="expense-amount">$${cat.amount.toFixed(2)}</div>
       `;
-      card.onclick = () => openModal(expense.id + 'Modal');
+      card.onclick = () => openModal(cat.id + 'Modal');
       container.appendChild(card);
+      // 2) build the matching modal (once)
+      if (!document.getElementById(cat.id + 'Modal')) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = cat.id + 'Modal';
+        // each modal shows its history chart
+        modal.innerHTML = `
+          <div class="modal-content">
+            <span class="close-button" onclick="closeModal('${cat.id}Modal')">&times;</span>
+            <h3>${cat.title} Expense History</h3>
+            <p>Your spending on ${cat.title.toLowerCase()} over time</p>
+            <canvas id="${cat.id}Chart"></canvas>
+          </div>
+        `;
+        document.body.appendChild(modal);
 
-      const modal = document.createElement('div');
-      modal.className = 'modal';
-      modal.id = expense.id + 'Modal';
-      modal.innerHTML = `
-        <div class="modal-content">
-          <span class="close-button" onclick="closeModal('${expense.id}Modal')">&times;</span>
-          <h3>${expense.title} Expense History</h3>
-          <p>Your spending on ${expense.title.toLowerCase()} over time</p>
-          <canvas id="${expense.id}Chart"></canvas>
-        </div>
-      `;
-      document.body.appendChild(modal);
-
-      setTimeout(() => {
-        const ctx = document.getElementById(expense.id + 'Chart').getContext('2d');
-        new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels: expense.history.map(e => e.date),
-            datasets: [{
-              label: expense.title,
-              data:  expense.history.map(e => e.amount),
-              backgroundColor: 'rgba(59, 130, 246, 0.2)',
-              borderColor: '#3b82f6',
-              borderWidth: 2,
-              fill: true,
-              tension: 0.4
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: false },
-              tooltip: {
-                mode: 'index',
-                intersect: false,
-                callbacks: {
-                  label: ctx => `$${ctx.raw}`
-                }
-              }
+        // initialize that chart
+        setTimeout(() => {
+          const ctx = document.getElementById(cat.id + 'Chart').getContext('2d');
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: cat.history.map(e => e.date),
+              datasets: [{
+                label: cat.title,
+                data:  cat.history.map(e => e.amount),
+                tension: 0.4,
+                fill: true,
+                backgroundColor: 'rgba(59,130,246,0.2)',
+                borderColor: '#3b82f6',
+                borderWidth: 2
+              }]
             },
-            scales: {
-              y: {
-                beginAtZero: false,
-                ticks: {
-                  callback: v => '$' + v
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  mode: 'index',
+                  intersect: false,
+                  callbacks: { label: ctx => `$${ctx.raw}` }
                 }
+              },
+              scales: {
+                y: { ticks: { callback: v => `$${v}` } }
               }
             }
-          }
-        });
-      }, 0);
+          });
+        }, 0);
+      }
     });
   }
 
-  // Kick it off on page load
+  function renderTrendChart() {
+    const monthly = expenseEntries.reduce((acc, {date,amount}) => {
+      const m = date.slice(0,7);
+      acc[m] = (acc[m]||0) + amount;
+      return acc;
+    }, {});
+    const labels = Object.keys(monthly).sort();
+    const data   = labels.map(m => monthly[m]);
+
+    new Chart(
+      document.getElementById('spendingTrendsChart'),
+      {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Expenses', data, fill:true, tension:0.4 }]},
+        options:{
+          responsive:true,
+          plugins:{ tooltip:{ callbacks:{ label:ctx=>`$${ctx.raw}` } }},
+          scales:{ y:{ ticks:{ callback:v=>`$${v}` } }}
+        }
+      }
+    );
+  }
+
+  function renderDistributionChart() {
+    const byCat = expenseEntries.reduce((acc, {category,amount})=> {
+      acc[category] = (acc[category]||0) + amount;
+      return acc;
+    }, {});
+    const total  = Object.values(byCat).reduce((s,v)=> s+v, 0);
+    const labels = Object.keys(byCat);
+    const data   = labels.map(c => ((byCat[c]/total)*100).toFixed(1));
+
+    new Chart(
+      document.getElementById('expenseDistributionChart'),
+      {
+        type:'doughnut',
+        data:{ labels, datasets:[{ data, fill:true }]},
+        options:{
+          responsive:true,
+          plugins:{
+            legend:{ position:'right' },
+            tooltip:{ callbacks:{ label:ctx=>`${ctx.label}: ${ctx.raw}%` }}
+          }
+        }
+      }
+    );
+  }
+
+  function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
   window.addEventListener('DOMContentLoaded', loadTransactions);
-
-
-  setTimeout(() => {
-    // Monthly spending trends chart
-    new Chart(document.getElementById('spendingTrendsChart'), {
-      type: 'line',
-      data: {
-        labels: ['January','February','March','April','May'],
-        datasets: [{
-          label: 'Total Expenses',
-          data: [4950,5100,5300,5670,5500],
-          backgroundColor: 'rgba(59, 130, 246, 0.2)',
-          borderColor: '#3b82f6',
-          borderWidth: 3,
-          fill: true,
-          tension: 0.4
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          tooltip: {
-            mode: 'index',
-            intersect: false,
-            callbacks: {
-              label: ctx => `$${ctx.raw}`
-            }
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: false,
-            ticks: {
-              callback: v => '$' + v
-            }
-          }
-        }
-      }
-    });
-
-    // Expense distribution chart
-    new Chart(document.getElementById('expenseDistributionChart'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Housing','Food','Education','Transportation','Utilities','Entertainment','Other'],
-        datasets: [{
-          data: [40,15,20,10,5,5,5],
-          backgroundColor: [
-            '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#6b7280'
-          ],
-          borderWidth: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: { position: 'right' },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.label}: ${ctx.raw}%`
-            }
-          }
-        }
-      }
-    });
-  }, 0);
-
-  // Modal open/close helpers
-  function openModal(id) {
-    document.getElementById(id).style.display = 'flex';
-  }
-  function closeModal(id) {
-    document.getElementById(id).style.display = 'none';
-  }
 </script>
-
 {% endblock %}

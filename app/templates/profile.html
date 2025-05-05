@@ -113,23 +113,6 @@
     
 
  
-    document.addEventListener('DOMContentLoaded', () => {
-      fetch('/api/expenses')
-        .then(res => {
-          if (!res.ok) throw new Error(res.statusText);
-          return res.json();
-        })
-        .then(expenses => {
-          const list = document.getElementById('expense-list');
-          expenses.forEach(exp => {
-            const li = document.createElement('li');
-            li.textContent = 
-              `${exp.date} — ${exp.category}: $${exp.amount.toFixed(2)}`;
-            list.appendChild(li);
-          });
-        })
-        .catch(err => console.error('Error loading expenses:', err));
-    });
 
     document.addEventListener("DOMContentLoaded", () => {
       const token = document.querySelector('meta[name="csrf-token"]').content;
