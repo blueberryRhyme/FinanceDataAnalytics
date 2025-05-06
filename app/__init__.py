@@ -2,7 +2,7 @@ import os
 from flask import Flask
 from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate, upgrade as alembic_upgrade
+from flask_migrate import Migrate
 from flask_login import LoginManager
 from flask_bcrypt import Bcrypt
 
@@ -24,9 +24,6 @@ def create_app():
     migrate.init_app(app, db) 
     login_manager.init_app(app)
     bcrypt.init_app(app)
-
-    with app.app_context():
-        alembic_upgrade()
 
     # Import User model here to avoid circular imports
     from .models import User
