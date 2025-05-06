@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Your Transactions</h1>
+  <p class="page-description">View, categorize, or delete your transactions.</p>
+
+  <table class="transaction-table">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Description</th>
+        <th>Category</th>
+        <th>Amount</th>
+        <th>Type</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for tx in transactions %}
+      <tr>
+        <td>{{ tx.date }}</td>
+        <td>{{ tx.description }}</td>
+        <td>
+          {% if tx.category == 'Uncategorized' %}
+          <form method="POST" style="display: inline;">
+            {{ form.csrf_token }}
+            <input type="hidden" name="transaction_id" value="{{ tx.id }}">
+            <input type="hidden" name="action" value="update">
+            <select name="category" onchange="this.form.submit()">
+              <option value="Uncategorized" selected>Uncategorized</option>
+              <option value="Food">Food</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Health">Health</option>
+              <option value="Salary">Salary</option>
+              <option value="Savings">Savings</option>
+              <option value="Refund">Refund</option>
+              <option value="Other">Other</option>
+            </select>
+          </form>
+          {% else %}
+          {{ tx.category }}
+          {% endif %}
+        </td>
+        <td>${{ "%.2f"|format(tx.amount) }}</td>
+        <td>{{ tx.type.value }}</td>
+        <td>
+          <form method="POST" style="display: inline;">
+            {{ form.csrf_token }}
+            <input type="hidden" name="transaction_id" value="{{ tx.id }}">
+            <input type="hidden" name="action" value="delete">
+            <button type="submit" class="button-small danger">Delete</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
