@@ -2,7 +2,7 @@ import csv
 import re
 from collections import defaultdict
 from io import TextIOWrapper
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, abort
 from flask_login import login_user, logout_user, current_user, login_required
 from . import db, bcrypt
 from .models import User, UserSettings, Transaction
@@ -305,6 +305,53 @@ def api_user_search():
     return jsonify(payload)
 
 
+@main.route("/api/add_friend", methods=["POST"])
+@login_required
+def api_add_friend():
+    data = request.get_json(silent=True) or {}
+    friend_id = data.get("friend_id")
+
+    # quick validations
+    if not isinstance(friend_id, int) or friend_id == current_user.id:
+        abort(400, "Invalid friend_id")
+
+    friend = User.query.get_or_404(friend_id)
+
+    if friend in current_user.friends:
+        return jsonify({"status": "already_friends"}), 200
+
+    current_user.friends.append(friend)
+    db.session.commit()
+    return jsonify({"status": "added"}), 201
+
+
+@main.route("/api/remove_friend", methods=["POST"])
+@login_required
+def api_remove_friend():
+    data = request.get_json(silent=True) or {}
+    friend_id = data.get("friend_id")
+
+    if not isinstance(friend_id, int) or friend_id == current_user.id:
+        abort(400, "Invalid friend_id")
+
+    friend = User.query.get_or_404(friend_id)
+
+    if friend not in current_user.friends:
+        return jsonify({"status": "not_friends"}), 200
+
+    current_user.friends.remove(friend)
+    db.session.commit()
+    return jsonify({"status": "removed"}), 200
+
+
+@main.route("/api/friends")
+@login_required
+def api_friends():
+    payload = [
+        {"id": f.id, "username": f.username}
+        for f in sorted(current_user.friends, key=lambda u: u.username.lower())
+    ]
+    return jsonify(payload)
 
 @main.route('/api/shared_users')
 @login_required
