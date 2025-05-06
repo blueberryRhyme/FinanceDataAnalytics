@@ -17,6 +17,11 @@
       <label for="email">{{ form.email.label }}</label>
       {{ form.email(class="input-box",
                     placeholder="Enter your email address") }}
+      {% for err in form.email.errors %}
+        <div class="alert alert-danger" style="margin-top:4px; padding:5px;">
+          {{ err }}
+        </div>
+      {% endfor %}
 
       <label for="password">{{ form.password.label }}</label>
       {{ form.password(class="input-box",
