@@ -29,16 +29,16 @@
             {{ form.csrf_token }}
             <input type="hidden" name="transaction_id" value="{{ tx.id }}">
             <input type="hidden" name="action" value="update">
-            <select name="category" onchange="this.form.submit()">
-              <option value="Uncategorized" selected>Uncategorized</option>
-              <option value="Food">Food</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Health">Health</option>
-              <option value="Salary">Salary</option>
-              <option value="Savings">Savings</option>
-              <option value="Refund">Refund</option>
-              <option value="Other">Other</option>
-            </select>
+            <select name="category" id="category-{{ tx.id }}" onchange="updateCategory('{{ tx.id }}', this.value)">
+              <option value="Uncategorized" {% if tx.category == 'Uncategorized' %}selected{% endif %}>Uncategorized</option>
+              <option value="Food" {% if tx.category == 'Food' %}selected{% endif %}>Food</option>
+              <option value="Shopping" {% if tx.category == 'Shopping' %}selected{% endif %}>Shopping</option>
+              <option value="Health" {% if tx.category == 'Health' %}selected{% endif %}>Health</option>
+              <option value="Salary" {% if tx.category == 'Salary' %}selected{% endif %}>Salary</option>
+              <option value="Savings" {% if tx.category == 'Savings' %}selected{% endif %}>Savings</option>
+              <option value="Refund" {% if tx.category == 'Refund' %}selected{% endif %}>Refund</option>
+              <option value="Other" {% if tx.category == 'Other' %}selected{% endif %}>Other</option>
+          </select>
           </form>
           {% else %}
           {{ tx.category }}
@@ -59,4 +59,34 @@
     </tbody>
   </table>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    async function updateCategory(transactionId, newCategory) {
+        try {
+            const response = await fetch('/api/update_transaction', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ form.csrf_token._value() }}' // Include CSRF token
+                },
+                body: JSON.stringify({
+                    transaction_id: transactionId,
+                    category: newCategory
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok) {
+                alert(result.error || 'Failed to update category');
+            } else {
+                alert('Category updated successfully!');
+            }
+        } catch (error) {
+            console.error('Error updating category:', error);
+            alert('An error occurred while updating the category.');
+        }
+    }
+</script>
 {% endblock %}
