@@ -671,3 +671,34 @@ canvas {
   position: relative;
   box-shadow: var(--shadow-md);
 }
+
+.transaction-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+}
+
+.transaction-table th, .transaction-table td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.transaction-table th {
+  background-color: #f8fafc;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.transaction-table tr:hover {
+  background-color: #f1f5f9;
+}
+
+.transaction-table .button-small.danger {
+  background-color: var(--danger);
+  color: var(--white);
+}
+
+.transaction-table .button-small.danger:hover {
+  background-color: #dc2626;
+}

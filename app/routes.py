@@ -72,7 +72,6 @@ def profile():
 
 
 @main.route('/transactionForm', methods=['GET', 'POST'])
-
 @login_required
 def transactionForm():
     form = TransactionForm()
@@ -195,6 +194,43 @@ def transactionForm():
         ))
 
     return render_template('transactionForm.html', form=form)
+
+
+@main.route('/transactions', methods=['GET', 'POST'])
+@login_required
+def transactions():
+    if request.method == 'POST':
+        # Handle updates or deletions
+        action = request.form.get('action')
+        transaction_id = request.form.get('transaction_id')
+
+        if action == 'delete':
+            # Delete the transaction
+            tx = Transaction.query.get(transaction_id)
+            if tx and tx.user_id == current_user.id:
+                db.session.delete(tx)
+                db.session.commit()
+                flash('Transaction deleted successfully.', 'success')
+            else:
+                flash('Transaction not found or unauthorized.', 'danger')
+
+        elif action == 'update':
+            # Update the category
+            new_category = request.form.get('category')
+            tx = Transaction.query.get(transaction_id)
+            if tx and tx.user_id == current_user.id:
+                tx.category = new_category
+                db.session.commit()
+                flash('Transaction updated successfully.', 'success')
+            else:
+                flash('Transaction not found or unauthorized.', 'danger')
+
+        return redirect(url_for('main.transactions'))
+
+    # Fetch all transactions for the current user
+    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
+    return render_template('transactions.html', transactions=transactions, form=TransactionForm())
+
 
 @main.route('/submission', methods=['GET'])
 @login_required
