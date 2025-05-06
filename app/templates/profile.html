@@ -46,28 +46,100 @@
   </section>
 
   <section class="profile-section">
-    <h2>Friends List</h2>
     <div class="card">
-      <div class="friend-list" id="friend-list">
-        <!-- Sample friends -->
-        <div class="friend-item">Mark</div>
-        <div class="friend-item">Jia</div>
-        <!-- Existing friends can be dynamically populated here -->
-        {% for friend in current_user.friends %}
-          <div class="friend-item">{{ friend.username }}</div>
-        {% endfor %}
-      </div>
+      <!-- Display fields -->
+      <div class="goal-list" id="goal-list">
+        <div class=" goal-item">Your currency:
+        <span id="current-currency">{{ current_user.settings.currency }}</span>
+        </div>
+        <div class=" goal-item">Your Monthly Budget:
+          $<span id="current-budget">{{ current_user.settings.budget }}</span>
+        </div>
+          
+        <div class = "goal-item">
+          <label>
+            Currency:
+            <select id="currency-select" class="input-box">
+              {% for code,name in [('AUD','Australian Dollar'),('USD','US Dollar'),('EUR','Euro')] %}
+                <option value="{{ code }}" {% if current_user.currency==code %}selected{% endif %}>
+                  {{ code }} — {{ name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
 
-      <!-- Add New Friend Form -->
-      <form class="add-form" onsubmit="addFriend(event)">
-        <h3 class="section-title">Add New Friend</h3>
-        <input type="text" id="friend-name" placeholder="Enter friend's name..." class="input-box" required>
-        <button type="submit" class="button">Add Friend</button>
-      </form>
+        <div class="goal-item">
+          <label >
+          Monthly Budget: $
+            <input id="budget-input" type="number" min="0" step="0.01"
+                  class="input-box"
+                  value="{{ current_user.budget }}">
+          </label>
+          <button id="save-settings" class="btn" style="margin-left:1rem">
+            Save
+          </button>
+        </div>  
+
+      </div>
     </div>
   </section>
+      
 
-  <script>
+<script>
+
+const cfg       = JSON.parse(document.getElementById('app-config').textContent);
+const CSRF = cfg.csrf; 
+
+  document.getElementById('save-settings').addEventListener('click', async () => {
+    const currency = document.getElementById('currency-select').value;
+    const budget   = parseFloat(document.getElementById('budget-input').value);
+
+    // Basic validation
+    if (isNaN(budget) || budget < 0) {
+      alert('Please enter a valid non-negative budget.');
+      return;
+    }
+
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    // Send AJAX
+    const res = await fetch('/api/update_settings', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF
+      },
+      body: JSON.stringify({ currency, budget })
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Save';
+
+    if (res.ok) {
+      const data = await res.json();
+      // Update the display spans
+      document.getElementById('current-currency').textContent = data.currency;
+      document.getElementById('current-budget').textContent   = data.budget.toFixed(2);
+
+      // Show confirmation message
+      const msg = document.getElementById('settings-msg');
+      msg.textContent = 'Settings updated!';
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    } else {
+      const err = await res.text();
+      alert('Update failed: ' + err);
+    }
+  });
+
+
+
+
+
     // Function to add a new goal to the list dynamically
     function addGoal(event) {
       event.preventDefault();  // Prevent form from submitting
@@ -90,32 +162,14 @@
       document.getElementById('target-amount').value = '';
       document.getElementById('target-date').value = '';
     }
-
-    // Function to add a new friend to the list dynamically
-    function addFriend(event) {
-      event.preventDefault();  // Prevent form from submitting
-
-      // Get the input value
-      const friendName = document.getElementById('friend-name').value;
-
-      // Create a new friend item element
-      const newFriendItem = document.createElement('div');
-      newFriendItem.classList.add('friend-item');
-      newFriendItem.textContent = friendName;
-
-      // Append the new friend item to the friend list
-      document.getElementById('friend-list').appendChild(newFriendItem);
-
-      // Clear the input field
-      document.getElementById('friend-name').value = '';
-    }
-
+    
     
 
  
 
     document.addEventListener("DOMContentLoaded", () => {
-      const token = document.querySelector('meta[name="csrf-token"]').content;
+
+
 
       document.body.addEventListener("click", async e => {
         if (!e.target.matches(".remove-friend-btn")) return;
@@ -129,7 +183,7 @@
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-CSRFToken": token
+              "X-CSRFToken": CSRF
             }
           });
           if (!resp.ok) throw new Error("Failed to remove friend");

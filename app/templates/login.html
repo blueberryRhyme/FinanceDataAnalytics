@@ -1,40 +1,54 @@
 {% extends "base.html" %}
-
 {% block title %}Log In{% endblock %}
 
 {% block content %}
 <div class="page-container">
   <h1>Welcome Back</h1>
-  <p class="page-description">Log in to manage your finances and track your expenses</p>
+  <p class="page-description">
+    Log in to manage your finances and track your expenses
+  </p>
 
   <div class="card" style="max-width: 500px;">
-    <form method="POST" action="{{ url_for('main.login') }}" class="form-wrapper">
+    <form method="POST"
+          action="{{ url_for('main.login') }}"
+          class="form-wrapper">
       {{ form.csrf_token }}
-      
+
       <label for="email">{{ form.email.label }}</label>
-      {{ form.email(class="input-box", placeholder="Enter your email address") }}
+      {{ form.email(class="input-box",
+                    placeholder="Enter your email address") }}
 
       <label for="password">{{ form.password.label }}</label>
-      {{ form.password(class="input-box", placeholder="Enter your password") }}
+      {{ form.password(class="input-box",
+                       placeholder="Enter your password") }}
 
-      <div style="display: flex; align-items: center; margin: 15px 0;">
-        {{ form.remember(id="remember", style="margin-right: 10px;") }}
-        <label for="remember" style="margin-bottom: 0;">{{ form.remember.label }}</label>
+      <div style="display:flex;align-items:center;margin:15px 0;">
+        {{ form.remember(id="remember", style="margin-right:10px;") }}
+        <label for="remember" style="margin-bottom:0;">{{ form.remember.label }}</label>
       </div>
 
       {{ form.submit(class="button") }}
-      
-      <div style="text-align: center; margin-top: 25px;">
-        <p>Don't have an account? <a href="{{ url_for('main.register') }}" style="color: var(--primary); text-decoration: none; font-weight: 500;">Create Account</a></p>
+
+      <div style="text-align:center;margin-top:25px;">
+        <p>
+          Don't have an account?
+          <a href="{{ url_for('main.register') }}"
+             style="color:var(--primary);text-decoration:none;font-weight:500;">
+            Create Account
+          </a>
+        </p>
       </div>
     </form>
   </div>
 
-  <!-- {% with messages = get_flashed_messages(with_categories=true) %}
+  {# ---------- flash messages ---------- #}
+  {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-      <div class="card" style="max-width: 500px; margin-top: 20px;">
+      <div class="card"
+           style="max-width:500px;margin-top:20px;">
         {% for category, message in messages %}
-          <div class="alert {% if category == 'danger' %}alert-danger{% else %}alert-success{% endif %}" style="padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+          <div class="alert {{ 'alert-danger' if category=='danger' else 'alert-success' }}"
+               style="padding:15px;border-radius:8px;margin-bottom:10px;">
             {{ message }}
           </div>
         {% endfor %}

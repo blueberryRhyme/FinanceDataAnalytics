@@ -298,10 +298,16 @@
 {% block content %}
 <div class="page-container">
   <div class="header-container">
-    <h1>Financial Dashboard</h1>
-    <p class="page-description">Track your expenses, monitor spending trends, and manage your finances</p>
+    {% if shared_user %}
+    <h1>Viewing {{ shared_user }}’s Dashboard</h1>
+  {% else %}
+    <h1>Your Financial Dashboard</h1>
+  {% endif %}
+  <p class="dashboard-description">Track your expenses, monitor spending trends, and manage your finances</p>
   </div>
  
+
+
 
   {% set exp_positive = exp_pct_change|float >= 0 %}
   {% set sav_positive = sav_pct_change|float >= 0 %}
@@ -395,6 +401,12 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+  
+
+  const cfg = JSON.parse(document.getElementById('app-config').textContent);
+  const viewUserId = cfg.viewUserId;  // number or null
+
+
   // categories = grouped-by-category for Recent
   const categories     = [];
 
@@ -411,7 +423,11 @@
 
   async function loadTransactions() {
     try {
-      const res  = await fetch('/api/transaction');
+
+      const urlTxn = viewUserId
+        ? `/api/transaction?view_user_id=${viewUserId}`
+        : '/api/transaction';
+      const res  = await fetch(urlTxn);
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();  // [ {category, history:[…]}, … ]
 

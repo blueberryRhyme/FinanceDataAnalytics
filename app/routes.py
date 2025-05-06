@@ -19,52 +19,13 @@ def home():
         return redirect(url_for('main.profile'))
     return render_template('home6.html')
 
+
+
 @main.route('/dashboard')
 @login_required
 def dashboard():
-
-    today = date.today()
-    ym_this = (today.year, today.month)
-    last_month_date = (today.replace(day=1) - timedelta(days=1))
-    ym_last = (last_month_date.year, last_month_date.month)
-
-    # 1) TOTAL EXPENSES
-    total_exp_this  = sum_category(None, *ym_this, tx_type="expense")   # pass None to mean “all categories”
-    total_exp_last  = sum_category(None, *ym_last, tx_type="expense")
-    exp_pct_change  = ((total_exp_this - total_exp_last) / total_exp_last * 100) \
-                        if total_exp_last else 0
-
-    # 2) SAVINGS CATEGORY
-    savings_this = sum_category('savings', *ym_this, tx_type='income')
-    savings_last = sum_category('savings', *ym_last, tx_type='income')
-    sav_pct_change = ((savings_this - savings_last) / savings_last * 100) if savings_last else 0
-    #   DEBUG
-    print(f'saving: {savings_this} and {sav_pct_change}')
-
-
-    # 3) BUDGET 
-
-    if current_user.settings is None:
-        settings = UserSettings(user_id=current_user.id)
-        db.session.add(settings)
-        db.session.commit()
-    else:
-        settings = current_user.settings
-
-    budget = settings.monthly_budget
-
-    budget = current_user.settings.monthly_budget
-    remaining = budget - total_exp_this
-    rem_pct   = (remaining / budget * 100) if budget else 0
-
-    return render_template('dashboard.html',
-        total_expenses       = round(total_exp_this, 2),
-        exp_pct_change       = round(exp_pct_change, 1),
-        savings              = round(savings_this, 2),
-        sav_pct_change       = round(sav_pct_change, 1),
-        budget               = round(budget, 2),
-        rem_pct              = round(rem_pct, 1),
-    )
+    data = gather_dashboard_data(current_user)
+    return render_template('dashboard.html', **data)
 
 @main.route('/register', methods=['GET','POST'])
 def register():
@@ -274,13 +235,25 @@ def friends():
 
 
 #   +++++++ API endpoints +++++++
+
+
 #   grouped by category
 @main.route('/api/transaction')
 @login_required
 def api_transactions():
-    # fetch all of this user’s transactions, ordered by date
+    uid = current_user.id
+
+    # if the front-end passed ?view_user_id=XYZ, and XYZ != current_user.id,
+    # check that XYZ has friended you, then switch to that ID
+    view_id = request.args.get('view_user_id', type=int)
+    if view_id and view_id != current_user.id:
+        other = User.query.get_or_404(view_id)
+        if other not in current_user.friended_by:
+            abort(403)
+        uid = other.id
+
     rows = (Transaction.query
-            .filter_by(user_id=current_user.id)
+            .filter_by(user_id=uid)
             .order_by(Transaction.date)
             .all())
 
@@ -307,6 +280,8 @@ def api_transactions():
     return jsonify(data)
 
 
+
+# +++++++ sharing feature ++++++
 
 @main.route("/api/user_search")
 @login_required
@@ -378,6 +353,61 @@ def api_friends():
     ]
     return jsonify(payload)
 
+@main.route('/api/shared_users')
+@login_required
+def api_shared_users():
+    shared = list(current_user.friended_by)  
+    shared.sort(key=lambda u: u.username)
+    return jsonify([{"id": u.id, "username": u.username} for u in shared])
+
+
+
+@main.route('/shared_dashboard/<int:user_id>')
+@login_required
+def shared_dashboard(user_id):
+    other = User.query.get_or_404(user_id)
+
+    # only allow if `other` friended you
+    if other not in current_user.friended_by:
+        abort(403)
+
+    # reuse your dashboard logic
+    data = gather_dashboard_data(other)
+    # pass in `shared_user` so the template can say “Viewing X’s dashboard”
+    return render_template(
+    'dashboard.html',
+    **data,
+    shared_user      = other.username,   # for the H1
+    view_user_id     = other.id          # for JS
+)
+
+
+
+
+@main.route('/api/update_settings', methods=['POST'])
+@login_required
+def api_update_settings():
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, 'Invalid payload')
+
+    currency = data.get('currency', '').strip()
+    budget   = data.get('budget')
+    if not currency or not isinstance(budget, (int, float)):
+        abort(400, 'currency and budget are required')
+
+    if current_user.settings is None:
+        current_user.settings = UserSettings(user_id=current_user.id)
+        db.session.add(current_user.settings)
+
+    current_user.settings.currency       = currency
+    current_user.settings.monthly_budget = budget
+    db.session.commit()
+
+    return jsonify(
+        currency=current_user.settings.currency,
+        budget=   float(current_user.settings.monthly_budget)
+    ), 200
 
 #   +++++++ helper functions +++++++
 VENDOR_MAP = {
@@ -403,12 +433,16 @@ def categorize_by_vendor(desc: str):
 
 
 #  get sum of a category in a given year+month
-def sum_category(cat_name, year, month, tx_type='expense'):
-    q = db.session.query(func.coalesce(func.sum(Transaction.amount), 0)).filter(
-        Transaction.user_id == current_user.id,
-        extract('year', Transaction.date) == year,
-        extract('month', Transaction.date) == month,
-    )
+def sum_category(cat_name, year, month, tx_type='expense', user=None):
+    
+    uid = user.id if user is not None else current_user.id
+    q = db.session.query(
+            func.coalesce(func.sum(Transaction.amount), 0)
+        ).filter(
+            Transaction.user_id == uid,
+            extract('year', Transaction.date) == year,
+            extract('month', Transaction.date) == month,
+        )
     if cat_name:
         q = q.filter(Transaction.category == cat_name)
     if tx_type:
@@ -418,3 +452,35 @@ def sum_category(cat_name, year, month, tx_type='expense'):
 
 
 
+def gather_dashboard_data(user):
+    today = date.today()
+    ym_this = (today.year, today.month)
+    last_month = (today.replace(day=1) - timedelta(days=1))
+    ym_last = (last_month.year, last_month.month)
+
+    total_exp_this = sum_category(None, *ym_this, tx_type="expense", user=user)
+    total_exp_last = sum_category(None, *ym_last, tx_type="expense", user=user)
+    exp_pct_change = ((total_exp_this - total_exp_last) / total_exp_last * 100) if total_exp_last else 0
+
+    savings_this = sum_category('savings', *ym_this, tx_type='income', user=user)
+    savings_last = sum_category('savings', *ym_last, tx_type='income', user=user)
+    sav_pct_change = ((savings_this - savings_last) / savings_last * 100) if savings_last else 0
+
+    # ensure settings exist
+    if user.settings is None:
+        user.settings = UserSettings(user_id=user.id)
+        db.session.add(user.settings)
+        db.session.commit()
+
+    budget    = user.settings.monthly_budget
+    remaining = budget - total_exp_this
+    rem_pct   = (remaining / budget * 100) if budget else 0
+
+    return {
+        'total_expenses': round(total_exp_this, 2),
+        'exp_pct_change': round(exp_pct_change, 1),
+        'savings':        round(savings_this, 2),
+        'sav_pct_change': round(sav_pct_change, 1),
+        'budget':         round(budget, 2),
+        'rem_pct':        round(rem_pct, 1),
+    }

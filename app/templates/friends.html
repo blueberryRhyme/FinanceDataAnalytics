@@ -2,8 +2,6 @@
 {% block title %}Friends{% endblock %}
 
 {% block head %}
-<!-- Expose CSRF token for JavaScript -->
-<meta name="csrf-token" content="{{ csrf_token() }}">
 {% endblock %}
 
 {% block content %}
@@ -19,49 +17,33 @@
     <ul id="friend-list" class="user-list"></ul>
   </div>
 
-  <!-- ───── Active Challenges ───── -->
-  <h2 class="section-title" style="align-self:flex-start;margin-left:0;">Active Challenges</h2>
-  <div class="challenges-container">
-    <div class="challenge-card">
-      <div class="challenge-title">Budget Champion</div>
-      <div class="challenge-description">Stay under budget for 3 consecutive months</div>
-      <div class="challenge-progress"><div class="progress-bar" style="width:66%;"></div></div>
-      <div class="challenge-stat"><span>2/3 months</span><span>+20 points</span></div>
-    </div>
-    <div class="challenge-card">
-      <div class="challenge-title">Savings Master</div>
-      <div class="challenge-description">Save 15% of income for 2 months</div>
-      <div class="challenge-progress"><div class="progress-bar" style="width:50%;"></div></div>
-      <div class="challenge-stat"><span>1/2 months</span><span>+15 points</span></div>
-    </div>
-  </div>
-
-  <!-- ───── Radar comparison ───── -->
+  <!-- ───── Shared with Current User ───── -->
   <div class="card">
-    <h2 class="section-title">Financial Health Comparison</h2>
-    <p>Compare your financial health metrics with friends</p>
-    <canvas id="comparisonChart" height="550"></canvas>
+    <h2 class="section-title">Shared with You</h2>
+    <ul id="shared-list" class="user-list"></ul>
   </div>
 
-  <!-- ───── Spending comparison ───── -->
-  <div class="card" style="max-width:900px;">
-    <h2 class="section-title">Monthly Spending Comparison</h2>
-    <p>See how your spending in each category compares to your friends</p>
-    <div class="chart-filters">
-      <select id="month-selector" class="input-box" style="width:auto;display:inline-block;">
-        <option value="april">April 2025</option>
-        <option value="march">March 2025</option>
-        <option value="february">February 2025</option>
-      </select>
-      <select id="friend-selector" class="input-box" style="width:auto;display:inline-block;">
-        <option value="average">Average of All Friends</option>
-        <option value="gilbert">Gilbert</option>
-        <option value="mark">Mark</option>
-        <option value="jia">Jia</option>
-      </select>
+
+  <!-- ───── Active Challenges ───── -->
+
+  <div class="card">
+    <h2 class="section-title">Active Challenges</h2>
+    <div class="challenges-container">
+      <div class="challenge-card">
+        <div class="challenge-title">Budget Champion</div>
+        <div class="challenge-description">Stay under budget for 3 consecutive months</div>
+        <div class="challenge-progress"><div class="progress-bar" style="width:66%;"></div></div>
+        <div class="challenge-stat"><span>2/3 months</span><span>+20 points</span></div>
+      </div>
+      <div class="challenge-card">
+        <div class="challenge-title">Savings Master</div>
+        <div class="challenge-description">Save 15% of income for 2 months</div>
+        <div class="challenge-progress"><div class="progress-bar" style="width:50%;"></div></div>
+        <div class="challenge-stat"><span>1/2 months</span><span>+15 points</span></div>
+      </div>
     </div>
-    <canvas id="spendingChart" height="450"></canvas>
   </div>
+
 
   <!-- ───── Add-friend search ───── -->
   <div class="card">
@@ -138,10 +120,10 @@ window.addEventListener('DOMContentLoaded', function () {
 });
 
 // CSRF token used by every POST request
-const CSRF = document.querySelector('meta[name="csrf-token"]').content;
-
+const cfg       = JSON.parse(document.getElementById('app-config').textContent);
+const csrfToken = cfg.csrf; 
 /* -----------------------------------------------------------
-   1. Friends list – load & remove
+   Friends list – load & remove
 ----------------------------------------------------------- */
 (function () {
   const $list = document.getElementById('friend-list');
@@ -174,7 +156,7 @@ const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const r=await fetch('/api/remove_friend',{
       method:'POST',
       credentials:'same-origin',
-      headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
       body:JSON.stringify({friend_id:+btn.dataset.id})
     });
     if(r.ok){
@@ -188,7 +170,41 @@ const CSRF = document.querySelector('meta[name="csrf-token"]').content;
 })();
 
 /* -----------------------------------------------------------
-   2. Add-friend live search
+   Shared dashboard
+----------------------------------------------------------- */
+
+(function(){
+    const $shared = document.getElementById('shared-list');
+    function row(u){
+      const li = document.createElement('li');
+      li.className='user-item'; li.style.justifyContent='space-between';
+      li.textContent = u.username;
+      const btn = document.createElement('button');
+      btn.className='btn btn--sm';
+      btn.textContent = 'View Dashboard';
+      btn.dataset.id = u.id;
+      li.append(btn);
+      return li;
+    }
+    async function loadShared(){
+      const r = await fetch('/api/shared_users');
+      const js = r.ok ? await r.json() : [];
+      $shared.innerHTML = '';
+      if(!js.length) $shared.innerHTML = '<li style="padding:8px;color:#94a3b8">No one is sharing with you</li>';
+      else js.forEach(u=>$shared.append(row(u)));
+    }
+    $shared.addEventListener('click', e=>{
+      const btn = e.target.closest('button[data-id]');
+      if(!btn) return;
+      window.location.href = `/shared_dashboard/${btn.dataset.id}`;
+    });
+    loadShared();
+  })();
+
+
+
+/* -----------------------------------------------------------
+   Add-friend live search
 ----------------------------------------------------------- */
 (function () {
   const $search=document.getElementById('user-search');
@@ -230,7 +246,7 @@ const CSRF = document.querySelector('meta[name="csrf-token"]').content;
     const r=await fetch('/api/add_friend',{
       method:'POST',
       credentials:'same-origin',
-      headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
       body:JSON.stringify({friend_id:+btn.dataset.id})
     });
     if(r.ok){
