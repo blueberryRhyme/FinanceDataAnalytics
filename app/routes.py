@@ -317,6 +317,26 @@ def api_transactions():
 
 
 
+@main.route('/api/update_transaction', methods=['POST'])
+@login_required
+def api_update_transaction():
+    data = request.get_json(silent=True) or {}
+    transaction_id = data.get('transaction_id')
+    new_category = data.get('category')
+
+    if not transaction_id or not new_category:
+        return jsonify({'error': 'Invalid data'}), 400
+
+    tx = Transaction.query.get(transaction_id)
+    if not tx or tx.user_id != current_user.id:
+        return jsonify({'error': 'Transaction not found or unauthorized'}), 404
+
+    tx.category = new_category
+    db.session.commit()
+    return jsonify({'success': True, 'category': new_category}), 200
+
+
+
 # +++++++ sharing feature ++++++
 
 @main.route("/api/user_search")
