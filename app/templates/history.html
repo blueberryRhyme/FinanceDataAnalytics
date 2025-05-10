@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 {% block title %}Transactions{% endblock %}
-
 {% block head %}
 <style>
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
+
   .card{background:#fff;border:1px solid #ddd;border-radius:10px;
         padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);overflow-x:auto;}
 
@@ -24,6 +25,33 @@
 {% block content %}
 <div class="page-container">
   <h1>Your Transaction History</h1>
+
+
+  <div class="controls">
+    <input class=" input-box" id="search" type="text" placeholder="Search…" />
+
+    <select id="filter-type"  class = "input-box">
+      <option value="" >All types</option>
+      <option value="expense">Expense</option>
+      <option value="income">Income</option>
+      <option value="transfer">Transfer</option>
+    </select>
+
+    <select id="filter-cat"  class = "input-box">
+      <option value="">All categories</option>
+      {% set SUGGEST = ['food','groceries','shopping','health','salary','savings','refund','uncategorized'] %}
+      {% for c in SUGGEST %}<option value="{{ c }}">{{ c|title }}</option>{% endfor %}
+    </select>
+
+    <select id="sort" class = "input-box">
+      <option value="date-desc">Date ↓</option>
+      <option value="date-asc">Date ↑</option>
+      <option value="amount-desc">Amount ↓</option>
+      <option value="amount-asc">Amount ↑</option>
+      <option value="category">Category A-Z</option>
+      <option value="type">Type A-Z</option>
+    </select>
+  </div>
 
   <div class="card">
     <table class="transaction-table">
@@ -70,7 +98,7 @@
 {% block scripts %}
 <script>
 const csrf   = '{{ form.csrf_token._value() }}';
-const SUGGEST= ["Food","Shopping","Health","Salary","Savings","Refund","Other"];
+const SUGGEST= ["food","groceries","shopping","health","salary","savings","refund","uncategorized"];
 
 /* One delegated listener—works for every future click */
 document.querySelector('.transaction-table').addEventListener('click', e=>{
@@ -99,7 +127,7 @@ function edit(cell){
   cancel.onclick=e=>{e.stopPropagation();finish(original);};
 
   const txId = +cell.parentElement.dataset.tx;
-  function commit(){ finish(sel.value==='__custom__'? (inp.value.trim()||original):sel.value); }
+  function commit(){ finish(sel.value==='__custom__'? (inp.value.trim().toLowerCase()||original):sel.value); }
   function finish(val){
     cell.classList.remove('cat-editing'); cell.dataset.cat=val;
     cell.innerHTML=`<span class="cat-view">${val}</span>`;
@@ -120,5 +148,62 @@ function update(id,cat){
   }).then(r=>r.ok||r.json().then(d=>alert(d.error||'Update failed')))
     .catch(()=>alert('Network error'));
 }
+
+const tbody       = document.querySelector('.transaction-table tbody');
+const rows        = Array.from(tbody.children);          // <tr> elements
+
+const searchInp   = document.getElementById('search');
+const filtTypeSel = document.getElementById('filter-type');
+const filtCatSel  = document.getElementById('filter-cat');
+const sortSel     = document.getElementById('sort');
+
+[searchInp, filtTypeSel, filtCatSel].forEach(el => el.addEventListener('input',  updateView));
+sortSel.addEventListener('change', updateView);
+
+function updateView(){
+  const q        = searchInp.value.trim().toLowerCase();
+  const needType = filtTypeSel.value;
+  const needCat  = filtCatSel.value;
+
+  rows.forEach(tr => {
+    const cells      = tr.children;
+    const dateTxt    = cells[0].textContent;
+    const descTxt    = cells[1].textContent.toLowerCase();
+    const catTxt     = tr.querySelector('.cat-view').textContent.toLowerCase();
+    const amountTxt  = cells[3].textContent.replace('$','');
+    const typeTxt    = cells[4].textContent.toLowerCase();
+
+    const matchesSearch = !q || descTxt.includes(q) || catTxt.includes(q) || typeTxt.includes(q);
+    const matchesType   = !needType || needType === typeTxt;
+    const matchesCat    = !needCat  || needCat  === catTxt;
+
+    tr.style.display = (matchesSearch && matchesType && matchesCat) ? '' : 'none';
+  });
+
+  applySort();              // keep current filter order but resort it
+}
+
+function applySort(){
+  const [col, dir] = sortSel.value.split('-');   // e.g. "amount-desc"
+  const visible    = rows.filter(tr => tr.style.display !== 'none');
+
+  visible.sort((a,b)=>{
+    const get = tr => {
+      switch(col){
+        case 'amount': return parseFloat(tr.children[3].textContent.slice(1));
+        case 'category': return tr.querySelector('.cat-view').textContent.toLowerCase();
+        case 'type':     return tr.children[4].textContent.toLowerCase();
+        case 'date':
+        default:         return new Date(tr.children[0].textContent);
+      }
+    };
+    return get(a) > get(b) ? 1 : -1;
+  });
+
+  if(dir === 'desc') visible.reverse();
+  visible.forEach(tr => tbody.appendChild(tr));  // re-append in new order
+}
+
+updateView();
 </script>
 {% endblock %}

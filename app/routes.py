@@ -134,11 +134,11 @@ def transactionForm():
                 direction = None
                 if amt >= 0:
                     tx_type = 'income'
-                    cat     = 'Income'
+                    cat     = 'income'
                 else:
                     tx_type = 'expense'
                     amt     = abs(amt)
-                    cat     = categorize_by_vendor(desc) or 'Uncategorized'
+                    cat     = categorize_by_vendor(desc) or 'uncategorized'
 
             tx = Transaction(
                 user_id            = current_user.id,
@@ -312,7 +312,8 @@ def api_transactions():
     # group by category
     grouped = defaultdict(list)
     for t in rows:
-        grouped[t.category].append({
+        key = (t.category or '').strip().lower()
+        grouped[key].append({
             'date':   t.date.isoformat(),
             'amount': float(t.amount),     # convert Decimal to float for JSON
             'type':   t.type.value,              # expense | income | transfer
@@ -379,7 +380,8 @@ def api_forecast():
     cat_month_totals = defaultdict(lambda: defaultdict(float))
     for t in rows:
         ym = (t.date.year, t.date.month)
-        cat_month_totals[t.category][ym] += float(t.amount)
+        key = t.category.strip().lower()
+        cat_month_totals[key][ym] += float(t.amount)
 
     cat_forecasts = {}
     for cat, month_dict in cat_month_totals.items():        
