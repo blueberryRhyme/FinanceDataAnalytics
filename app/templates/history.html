@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+
+{% block head %}
+<style>
+  .card{background:#fff;border:1px solid #ddd;border-radius:10px;
+        padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);overflow-x:auto;}
+
+  .transaction-table{width:100%;border-collapse:collapse;}
+  .transaction-table th,.transaction-table td{padding:8px 10px;text-align:left;}
+  .transaction-table th{background:#f2f5f8;}
+  .transaction-table tr:nth-child(even){background:#fafafa;}
+
+  .cat-cell{cursor:pointer;}
+  .cat-editing{background:#fffbe6;}
+
+  .btn{border:none;background:none;cursor:pointer;font-size:1em;}
+  .btn.save{color:green;}  .btn.cancel{color:#d33;}
+
+  .pager{text-align:center;margin:24px 0;} .pager a{margin:0 6px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Your Transaction History</h1>
+
+  <div class="card">
+    <table class="transaction-table">
+      <thead>
+        <tr>
+          <th>Date</th><th>Description</th><th>Category</th>
+          <th>Amount</th><th>Type</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for tx in transactions %}
+        <tr data-tx="{{ tx.id }}">
+          <td>{{ tx.date }}</td>
+          <td>{{ tx.description }}</td>
+
+          <td class="cat-cell" data-cat="{{ tx.category }}">
+            <span class="cat-view">{{ tx.category }}</span>
+          </td>
+
+          <td>${{ "%.2f"|format(tx.amount) }}</td>
+          <td>{{ tx.type.value }}</td>
+          <td>
+            <form method="POST" style="display:inline;">
+              {{ form.csrf_token }}
+              <input type="hidden" name="transaction_id" value="{{ tx.id }}">
+              <input type="hidden" name="action" value="delete">
+              <button type="submit" class="btn" title="Delete">🗑️</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    {% if pagination.has_prev %}<a href="{{ url_for('main.history', page=pagination.prev_num) }}">&laquo; Prev</a>{% endif %}
+    Page {{ pagination.page }} / {{ pagination.pages }}
+    {% if pagination.has_next %}<a href="{{ url_for('main.history', page=pagination.next_num) }}">Next &raquo;</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const csrf   = '{{ form.csrf_token._value() }}';
+const SUGGEST= ["Food","Shopping","Health","Salary","Savings","Refund","Other"];
+
+/* One delegated listener—works for every future click */
+document.querySelector('.transaction-table').addEventListener('click', e=>{
+  const cell = e.target.closest('.cat-cell');
+  if(!cell || cell.classList.contains('cat-editing')) return;
+  edit(cell);
+});
+
+function edit(cell){
+  const original = cell.dataset.cat;
+  cell.classList.add('cat-editing'); cell.innerHTML='';
+
+  const sel = document.createElement('select');
+  sel.innerHTML = SUGGEST.map(c=>`<option ${c===original?'selected':''}>${c}</option>`).join('')
+           +'<option value="__custom__">Custom…</option>';
+  const inp = Object.assign(document.createElement('input'),{type:'text',style:'display:none'});
+  const save = btn('✓','green'), cancel = btn('✕','#d33');
+  cell.append(sel,inp,save,cancel);
+
+  sel.onchange=()=>{inp.style.display=sel.value==='__custom__'?'inline':'none'; if(inp.style.display==='inline') inp.focus();};
+
+  const outside=e=>{if(!cell.contains(e.target)) commit();};
+  document.addEventListener('click',outside,{once:true,capture:true});
+
+  save.onclick  =e=>{e.stopPropagation();commit();};
+  cancel.onclick=e=>{e.stopPropagation();finish(original);};
+
+  const txId = +cell.parentElement.dataset.tx;
+  function commit(){ finish(sel.value==='__custom__'? (inp.value.trim()||original):sel.value); }
+  function finish(val){
+    cell.classList.remove('cat-editing'); cell.dataset.cat=val;
+    cell.innerHTML=`<span class="cat-view">${val}</span>`;
+    if(val!==original) update(txId,val);
+  }
+}
+
+function btn(t,color){
+  const b=document.createElement('button'); b.type='button'; b.textContent=t;
+  b.className='btn'; b.style.color=color; return b;
+}
+
+function update(id,cat){
+  fetch('/api/update_transaction',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+    body:JSON.stringify({transaction_id:id,category:cat})
+  }).then(r=>r.ok||r.json().then(d=>alert(d.error||'Update failed')))
+    .catch(()=>alert('Network error'));
+}
+</script>
+{% endblock %}

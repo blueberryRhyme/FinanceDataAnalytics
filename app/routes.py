@@ -1,17 +1,21 @@
 import csv
 import re
+import numpy as np
 from collections import defaultdict
+from math import ceil
 from io import TextIOWrapper
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, abort
 from flask_login import login_user, logout_user, current_user, login_required
 from . import db, bcrypt
-from .models import User, UserSettings, Transaction
+from .models import User, UserSettings, Transaction, TransactionType
 from app.forms import TransactionForm, RegistrationForm, LoginForm, LogoutForm
 from datetime import datetime,date, timedelta
+from dateutil.relativedelta import relativedelta
 
 from sqlalchemy import func, extract
 
 main = Blueprint('main', __name__)
+
 
 @main.route('/')
 def home():
@@ -195,42 +199,54 @@ def transactionForm():
 
     return render_template('transactionForm.html', form=form)
 
-
-@main.route('/transactions', methods=['GET', 'POST'])
+@main.route('/history', methods=['GET', 'POST'])
 @login_required
-def transactions():
+def history():
+    """List user transactions with inline edit/delete (50 per page)."""
+    PER_PAGE = 50
+    page = request.args.get('page', 1, type=int)
+
+    # ── Handle edit / delete via standard form post ─────────────
     if request.method == 'POST':
-        # Handle updates or deletions
         action = request.form.get('action')
-        transaction_id = request.form.get('transaction_id')
+        tx_id  = request.form.get('transaction_id', type=int)
+        if not tx_id:
+            abort(400, description="Missing transaction_id")
+
+        tx = Transaction.query.get_or_404(tx_id)
+        if tx.user_id != current_user.id:
+            abort(403)
 
         if action == 'delete':
-            # Delete the transaction
-            tx = Transaction.query.get(transaction_id)
-            if tx and tx.user_id == current_user.id:
-                db.session.delete(tx)
-                db.session.commit()
-                flash('Transaction deleted successfully.', 'success')
-            else:
-                flash('Transaction not found or unauthorized.', 'danger')
+            db.session.delete(tx)
+            db.session.commit()
+            flash('Transaction deleted.', 'success')
 
         elif action == 'update':
-            # Update the category
-            new_category = request.form.get('category')
-            tx = Transaction.query.get(transaction_id)
-            if tx and tx.user_id == current_user.id:
-                tx.category = new_category
-                db.session.commit()
-                flash('Transaction updated successfully.', 'success')
+            new_cat = request.form.get('category', '').strip()
+            if not new_cat:
+                flash('Category cannot be empty.', 'warning')
             else:
-                flash('Transaction not found or unauthorized.', 'danger')
+                tx.category = new_cat
+                db.session.commit()
+                flash('Category updated.', 'success')
+        else:
+            flash('Unsupported action.', 'danger')
 
-        return redirect(url_for('main.transactions'))
+        # stay on the same page after the post/redirect/get cycle
+        return redirect(url_for('main.history', page=page))
 
-    # Fetch all transactions for the current user
-    transactions = Transaction.query.filter_by(user_id=current_user.id).order_by(Transaction.date.desc()).all()
-    return render_template('transactions.html', transactions=transactions, form=TransactionForm())
+    pagination = (Transaction.query
+                  .filter_by(user_id=current_user.id)
+                  .order_by(Transaction.date.desc())
+                  .paginate(page=page, per_page=PER_PAGE, error_out=False))
 
+    return render_template(
+        'history.html',
+        transactions=pagination.items,
+        pagination=pagination,     
+        form=TransactionForm()
+    )
 
 @main.route('/submission', methods=['GET'])
 @login_required
@@ -270,10 +286,10 @@ def friends():
 
 
 
-#   +++++++ API endpoints +++++++
+#   ++++++++++++++++++ API endpoints +++++++++++++++++++++
 
 
-#   grouped by category
+#   grouped transaction by category
 @main.route('/api/transaction')
 @login_required
 def api_transactions():
@@ -336,8 +352,92 @@ def api_update_transaction():
     return jsonify({'success': True, 'category': new_category}), 200
 
 
+# ++++++++++++++++++++++ forecast +++++++++++++++++++++
 
-# +++++++ sharing feature ++++++
+@main.route("/forecast")
+@login_required
+def forecast():
+    return render_template("forecast.html")
+
+@main.route("/api/forecast")
+@login_required
+def api_forecast():
+    window = request.args.get("months", default=12, type=int)
+    window = max(3, min(window, 36))            # clamp 3-36
+
+    hist_months  = month_starts(-(window-1), window)
+    future_lbls  = [d.strftime("%b %Y") for d in month_starts(+1, 6)]
+
+    # pull user's expense rows
+    rows = (Transaction.query
+            .filter(Transaction.user_id == current_user.id,
+                    Transaction.type == TransactionType.expense)
+            .order_by(Transaction.date)
+            .all())
+
+    # aggregate: category → {(yr,mo): total}
+    cat_month_totals = defaultdict(lambda: defaultdict(float))
+    for t in rows:
+        ym = (t.date.year, t.date.month)
+        cat_month_totals[t.category][ym] += float(t.amount)
+
+    cat_forecasts = {}
+    for cat, month_dict in cat_month_totals.items():        
+        series = [month_dict.get((d.year, d.month), 0.0)    
+                  for d in hist_months]
+        cat_forecasts[cat] = linear_forecast(series,
+                                             steps=6,
+                                             window=window)
+
+    overall = np.sum(list(cat_forecasts.values()), axis=0).round(2).tolist()
+
+    return jsonify(months=future_lbls,
+                   categories=cat_forecasts,
+                   overall=overall)
+@main.route("/api/forecast_simulate", methods=["POST"])
+@login_required
+def api_forecast_simulate():
+    data   = request.get_json() or {}
+    # robust parse for delta_amount
+    raw    = data.get("delta_amount", 0)
+    try:
+        delta = float(raw) if str(raw).strip() else 0.0
+    except ValueError:
+        delta = 0.0
+
+    cat    = data.get("category")  # None ⇒ overall
+    base   = api_forecast().json
+    series = base["categories"].get(cat, base["overall"]) if cat else base["overall"]
+
+    adjusted = [round(v + delta, 2) for v in series]
+    abs_delta = abs(delta)
+
+    if delta == 0:
+        advice = "No change — forecast unchanged."
+    else:
+        if delta > 0:
+            verb = f"Spending ${abs_delta:.0f} more"
+        else:  # delta < 0
+            verb = f"Spending ${abs_delta:.0f} less"      # or “Cutting”
+
+        prefix = (f"{verb} each month in '{cat}' "
+                if cat else
+                f"{verb} overall each month ")
+
+        advice = prefix + f"would push your 6-month projection to ${adjusted[-1]:,.0f}."
+
+        budget_dec = getattr(current_user.settings, "monthly_budget", None)
+        budget = float(budget_dec) if budget_dec is not None else None
+
+        if delta > 0 and budget and adjusted[-1] > 0.9 * budget:
+            advice += " That’s close to your budget—consider trimming elsewhere."
+        elif delta < 0:
+            advice += " Good move—projection stays comfortably under budget."
+
+    return jsonify(series=adjusted, advice=advice)
+
+
+# +++++++++++++++++++ sharing feature +++++++++++++++=+++
 
 @main.route("/api/user_search")
 @login_required
@@ -465,7 +565,7 @@ def api_update_settings():
         budget=   float(current_user.settings.monthly_budget)
     ), 200
 
-#   +++++++ helper functions +++++++
+#   ++++++++++++++++++++ helper functions +++++++++++++++++++++
 VENDOR_MAP = {
     "woolworth":   "Groceries",
     "coles":       "Groceries",
@@ -505,9 +605,6 @@ def sum_category(cat_name, year, month, tx_type='expense', user=None):
         q = q.filter(Transaction.type == tx_type)
     return q.scalar()
 
-
-
-
 def gather_dashboard_data(user):
     today = date.today()
     ym_this = (today.year, today.month)
@@ -540,3 +637,21 @@ def gather_dashboard_data(user):
         'budget':         round(budget, 2),
         'rem_pct':        round(rem_pct, 1),
     }
+
+#    weighted linear regression: newer months weigh more
+def linear_forecast(history, steps=6, window=12):
+    tail = history[-window:]
+    if len(tail) < 2:
+        return [tail[-1] if tail else 0.0] * steps
+    x = np.arange(len(tail))
+    w = np.linspace(0.1, 1.0, len(tail))
+    m, b = np.polyfit(x, tail, 1, w=w)
+    future_x = np.arange(len(tail), len(tail)+steps)
+    return list((m * future_x + b).round(2))
+
+def month_starts(offset: int, count: int):
+    """Return `count` first-of-month date objects starting `offset` months from now."""
+    start = date.today().replace(day=1) + relativedelta(months=offset)
+    step  = 1 if count > 0 else -1
+    return [(start + relativedelta(months=i)).replace(day=1)
+            for i in range(0, count, step)]
