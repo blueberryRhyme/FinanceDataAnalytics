@@ -81,10 +81,30 @@
               <button type="submit" class="btn" title="Delete">🗑️</button>
             </form>
           </td>
+          <td>
+            {% if tx.type == TransactionType.transfer and tx.transfer_direction == 'in' %}
+              <button class="btn btn--sm btn-ghost"
+                      title="Associate friend"
+                      data-tx="{{ tx.id }}">🔍</button>
+            {% endif %}
+          </td>
+
         </tr>
       {% endfor %}
       </tbody>
     </table>
+
+    <div id="friend-modal" style="
+     display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+     z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:8px;padding:20px;width:320px">
+        <h3 style="margin-top:0">Tag transfer to a friend</h3>
+        <input id="friend-search" class="input-box" style="width:100%" placeholder="Search…">
+        <ul id="friend-results" class="user-list" style="margin-top:1rem;max-height:160px;overflow:auto"></ul>
+        <button id="friend-close" class="button" style="margin-top:12px">Cancel</button>
+      </div>
+    </div>
+
   </div>
 
   <div class="pager">
@@ -97,32 +117,29 @@
 
 {% block scripts %}
 <script>
+  
 const csrf   = '{{ form.csrf_token._value() }}';
-const SUGGEST= ["food","groceries","shopping","health","salary","savings","refund","uncategorized"];
+const SUGGEST= ["food","groceries","shopping","health","salary",
+                "savings","refund","uncategorized"];
 
-/* One delegated listener—works for every future click */
+/* ---------- inline category edit ---------- */
 document.querySelector('.transaction-table').addEventListener('click', e=>{
   const cell = e.target.closest('.cat-cell');
   if(!cell || cell.classList.contains('cat-editing')) return;
   edit(cell);
 });
-
 function edit(cell){
   const original = cell.dataset.cat;
   cell.classList.add('cat-editing'); cell.innerHTML='';
-
   const sel = document.createElement('select');
   sel.innerHTML = SUGGEST.map(c=>`<option ${c===original?'selected':''}>${c}</option>`).join('')
            +'<option value="__custom__">Custom…</option>';
   const inp = Object.assign(document.createElement('input'),{type:'text',style:'display:none'});
   const save = btn('✓','green'), cancel = btn('✕','#d33');
   cell.append(sel,inp,save,cancel);
-
   sel.onchange=()=>{inp.style.display=sel.value==='__custom__'?'inline':'none'; if(inp.style.display==='inline') inp.focus();};
-
   const outside=e=>{if(!cell.contains(e.target)) commit();};
   document.addEventListener('click',outside,{once:true,capture:true});
-
   save.onclick  =e=>{e.stopPropagation();commit();};
   cancel.onclick=e=>{e.stopPropagation();finish(original);};
 
@@ -134,12 +151,10 @@ function edit(cell){
     if(val!==original) update(txId,val);
   }
 }
-
-function btn(t,color){
-  const b=document.createElement('button'); b.type='button'; b.textContent=t;
+function btn(txt,color){
+  const b=document.createElement('button'); b.type='button'; b.textContent=txt;
   b.className='btn'; b.style.color=color; return b;
 }
-
 function update(id,cat){
   fetch('/api/update_transaction',{
     method:'POST',
@@ -149,61 +164,162 @@ function update(id,cat){
     .catch(()=>alert('Network error'));
 }
 
+/* ---------- filter + sort ---------- */
 const tbody       = document.querySelector('.transaction-table tbody');
-const rows        = Array.from(tbody.children);          // <tr> elements
-
+const rows        = Array.from(tbody.children);
 const searchInp   = document.getElementById('search');
 const filtTypeSel = document.getElementById('filter-type');
 const filtCatSel  = document.getElementById('filter-cat');
 const sortSel     = document.getElementById('sort');
-
-[searchInp, filtTypeSel, filtCatSel].forEach(el => el.addEventListener('input',  updateView));
-sortSel.addEventListener('change', updateView);
-
+[searchInp,filtTypeSel,filtCatSel].forEach(el=>el.addEventListener('input',updateView));
+sortSel.addEventListener('change',updateView);
 function updateView(){
-  const q        = searchInp.value.trim().toLowerCase();
-  const needType = filtTypeSel.value;
-  const needCat  = filtCatSel.value;
-
-  rows.forEach(tr => {
-    const cells      = tr.children;
-    const dateTxt    = cells[0].textContent;
-    const descTxt    = cells[1].textContent.toLowerCase();
-    const catTxt     = tr.querySelector('.cat-view').textContent.toLowerCase();
-    const amountTxt  = cells[3].textContent.replace('$','');
-    const typeTxt    = cells[4].textContent.toLowerCase();
-
-    const matchesSearch = !q || descTxt.includes(q) || catTxt.includes(q) || typeTxt.includes(q);
-    const matchesType   = !needType || needType === typeTxt;
-    const matchesCat    = !needCat  || needCat  === catTxt;
-
-    tr.style.display = (matchesSearch && matchesType && matchesCat) ? '' : 'none';
+  const q=searchInp.value.trim().toLowerCase();
+  const needType=filtTypeSel.value, needCat=filtCatSel.value;
+  rows.forEach(tr=>{
+    const desc= tr.children[1].textContent.toLowerCase();
+    const cat = tr.querySelector('.cat-view').textContent.toLowerCase();
+    const type= tr.children[4].textContent.toLowerCase();
+    const show = (!q||desc.includes(q)||cat.includes(q)||type.includes(q)) &&
+                 (!needType||needType===type) && (!needCat||needCat===cat);
+    tr.style.display = show? '' : 'none';
   });
-
-  applySort();              // keep current filter order but resort it
+  applySort();
 }
-
 function applySort(){
-  const [col, dir] = sortSel.value.split('-');   // e.g. "amount-desc"
-  const visible    = rows.filter(tr => tr.style.display !== 'none');
-
+  const [col,dir]=sortSel.value.split('-');
+  const visible=rows.filter(tr=>tr.style.display!=='none');
   visible.sort((a,b)=>{
-    const get = tr => {
+    const get=tr=>{
       switch(col){
-        case 'amount': return parseFloat(tr.children[3].textContent.slice(1));
+        case 'amount':   return parseFloat(tr.children[3].textContent.slice(1));
         case 'category': return tr.querySelector('.cat-view').textContent.toLowerCase();
         case 'type':     return tr.children[4].textContent.toLowerCase();
         case 'date':
         default:         return new Date(tr.children[0].textContent);
       }
     };
-    return get(a) > get(b) ? 1 : -1;
+    return get(a)>get(b)?1:-1;
   });
+  if(dir==='desc') visible.reverse();
+  visible.forEach(tr=>tbody.appendChild(tr));
+}
+updateView();
+/* ================================================================
+   FRIEND-ASSOCIATE MODAL
+   – uses the modal already in the HTML –
+================================================================ */
+let activeTxId = null;
 
-  if(dir === 'desc') visible.reverse();
-  visible.forEach(tr => tbody.appendChild(tr));  // re-append in new order
+/* grab existing elements */
+const $modal   = document.getElementById('friend-modal');
+const $fSearch = document.getElementById('friend-search');
+const $fList   = document.getElementById('friend-results');
+const $close   = document.getElementById('friend-close');
+
+/* debounce helper */
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}}
+
+/* open modal when 🔍 clicked */
+document.querySelector('.transaction-table').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-tx]'); if(!btn) return;
+  activeTxId = +btn.dataset.tx;
+  openModal();
+});
+function openModal(){
+  $modal.style.display = 'flex';
+  $fSearch.value = '';
+  renderFriends();          // <-- draw everyone
+  $fSearch.focus();
 }
 
-updateView();
+/* close modal */
+function closeModal(){
+  $modal.style.display = 'none';
+  activeTxId = null;
+}
+$close.addEventListener('click', closeModal);
+$modal.addEventListener('click', e=>{ if(e.target === $modal) closeModal(); });
+
+let friendsCache = null;
+async function loadFriends(){
+  if(friendsCache) return friendsCache;
+  const r = await fetch('/api/friends', {credentials:'same-origin'});
+  friendsCache = r.ok ? await r.json() : [];
+  return friendsCache;
+}
+
+$fSearch.addEventListener('input', debounce(renderFriends, 200));
+
+async function renderFriends(){
+  const q = $fSearch.value.trim().toLowerCase();
+  const friends = await loadFriends();
+
+  // If search box is empty -> show everyone
+  const results = q
+        ? friends.filter(f => f.username.toLowerCase().includes(q))
+        : friends;
+
+  $fList.innerHTML = '';
+  if (!results.length){
+    $fList.innerHTML = '<li style="padding:8px;color:#94a3b8">No friends found</li>';
+    return;
+  }
+
+  results.forEach(f=>{
+    const li  = document.createElement('li');
+    li.className = 'user-item';
+    li.style.justifyContent = 'space-between';
+    li.textContent = f.username;
+
+    const btn = document.createElement('button');
+    btn.className = 'button';
+    btn.textContent = 'Tag';
+    btn.dataset.id   = f.id;
+    btn.dataset.name = f.username;
+
+    li.append(btn);
+    $fList.append(li);
+  });
+}
+
+
+
+$fList.addEventListener('click', async e=>{
+  const btn = e.target.closest('button[data-id]'); if(!btn) return;
+  const fid = +btn.dataset.id, fname = btn.dataset.name;
+
+  /* tag the active transfer */
+  await fetch('/api/bill/associate',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+    body:JSON.stringify({transaction_id:activeTxId, friend_id:fid})
+  });
+
+  /* look for similar transfers */
+  const r = await fetch(`/api/bill/suggest_friends/${activeTxId}`);
+  const list = r.ok ? await r.json() : [];
+  if(list.length){
+    const yes = confirm(`Also tag ${list.length} similar transfers to ${fname}?`);
+    if(yes){
+      for(const t of list){
+        await fetch('/api/bill/associate',{
+          method:'POST',
+          headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+          body:JSON.stringify({
+            transaction_id:t.id,
+            friend_id:fid,
+            confidence:t.score/100
+          })
+        });
+      }
+    }
+  }
+  alert('Transfer(s) linked!');
+  closeModal();
+  location.reload();
+});
+
 </script>
+
 {% endblock %}

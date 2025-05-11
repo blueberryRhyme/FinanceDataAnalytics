@@ -7,15 +7,16 @@ from io import TextIOWrapper
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, abort
 from flask_login import login_user, logout_user, current_user, login_required
 from . import db, bcrypt
-from .models import User, UserSettings, Transaction, TransactionType
+from .models import User, UserSettings, Transaction, TransactionType, Bill, BillMember,BillTransaction, TransactionFriend
 from app.forms import TransactionForm, RegistrationForm, LoginForm, LogoutForm
 from datetime import datetime,date, timedelta
 from dateutil.relativedelta import relativedelta
-
+from rapidfuzz import fuzz
+from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func, extract
 
-main = Blueprint('main', __name__)
 
+main = Blueprint('main', __name__)
 
 @main.route('/')
 def home():
@@ -244,6 +245,7 @@ def history():
     return render_template(
         'history.html',
         transactions=pagination.items,
+        TransactionType=TransactionType,
         pagination=pagination,     
         form=TransactionForm()
     )
@@ -270,6 +272,80 @@ def submission():
         tx_type  = tx_type
     )
 
+@main.route('/splitBill')
+@login_required
+def splitBill():                      
+    """
+    Renders the bill-splitting workspace.
+    • `transactions` – last 200 transfers/in-flow/out-flow records
+                       (enough for fuzzy matching)
+    • `friends`      – current_user.friends for the dropdown
+    """
+    recent_tx = (Transaction.query
+                 .filter(Transaction.user_id == current_user.id,
+                         Transaction.type.in_([
+                         TransactionType.transfer,
+                         TransactionType.expense,
+                         TransactionType.income
+                        ]))
+                 .order_by(Transaction.date.desc())
+                 .limit(200)
+                 .all())
+
+    friends = sorted(current_user.friends, key=lambda u: u.username.lower())
+
+    return render_template(
+        'splitBill.html',
+        transactions=recent_tx,
+        friends=friends,
+    )
+
+
+@main.route('/bills')
+@login_required
+def bills_overview():
+    # bills you created OR you are a member of
+    q = (Bill.query
+         .filter(
+            db.or_(
+              Bill.created_by == current_user.id,
+              Bill.members.any(BillMember.user_id == current_user.id)
+            ))
+         .order_by(Bill.date.desc()))
+    print(q.all())
+    return render_template('bills.html', bills=q.all())
+
+
+@main.route('/bill/<int:bill_id>')
+@login_required
+def bill_detail(bill_id):
+    bill = Bill.query.get_or_404(bill_id)
+
+    # security: must be creator or member
+    member_ids = {bm.user_id for bm in bill.members}
+    if current_user.id not in member_ids and bill.created_by != current_user.id:
+        abort(403)
+
+    #  all transactions already applied to *any* bill
+    used_all = db.session.query(BillTransaction.transaction_id).subquery()
+
+    #  only suggest those fuzzy-linked transactions that are NOT in used_all
+    suggested = (
+        Transaction.query
+                   .join(TransactionFriend, Transaction.id == TransactionFriend.transaction_id)
+                   .filter(
+                       TransactionFriend.friend_id.in_(member_ids),
+                       ~Transaction.id.in_(used_all)
+                   )
+                   .all()
+    )
+
+    return render_template(
+        'bill_detail.html',
+        bill=bill,
+        members=bill.members,
+        suggested=suggested
+    )
 
 @main.route('/logout', methods=['POST'])
 @login_required
@@ -314,6 +390,7 @@ def api_transactions():
     for t in rows:
         key = (t.category or '').strip().lower()
         grouped[key].append({
+            'id':         t.id,
             'date':   t.date.isoformat(),
             'amount': float(t.amount),     # convert Decimal to float for JSON
             'type':   t.type.value,              # expense | income | transfer
@@ -540,6 +617,150 @@ def shared_dashboard(user_id):
 )
 
 
+#  ++++++++++++++++++ bill splitting +++++++++++++++++++++
+
+@main.route("/api/bill/suggest_friends/<int:tx_id>")
+@login_required
+def api_bill_suggest_friends(tx_id):
+
+    tx = Transaction.query.get_or_404(tx_id)
+    if tx.user_id != current_user.id:
+        abort(403)
+
+    results = similar_transfers(tx, threshold=85)
+    payload = [{
+        "id": t.id,
+        "date": t.date.isoformat(),
+        "desc": t.description,
+        "amount": float(t.amount),
+        "score": score
+    } for t, score in results]
+
+    return jsonify(payload)
+
+
+@main.route("/api/bill/associate", methods=["POST"])
+@login_required
+def api_bill_associate_friend():
+    """
+    Body: { transaction_id: int, friend_id: int, confidence: float? }
+    Links a **single** transaction to a friend.
+    """
+    data = request.get_json(silent=True) or {}
+    tx_id     = data.get("transaction_id")
+    friend_id = data.get("friend_id")
+    conf      = float(data.get("confidence", 1.0))
+
+    tx   = Transaction.query.get_or_404(tx_id)
+    fr   = User.query.get_or_404(friend_id)
+
+    if tx.user_id != current_user.id or fr not in current_user.friends:
+        abort(403)
+
+    link = TransactionFriend(transaction_id=tx.id,
+                             friend_id=fr.id,
+                             confidence=conf)
+    db.session.merge(link)          # idempotent upsert
+    db.session.commit()
+    return "", 204
+
+from decimal import Decimal, ROUND_HALF_UP
+
+@main.route("/api/bill/create", methods=["POST"])
+@login_required
+def api_bill_create():
+    data      = request.get_json(force=True)
+    tx_ids    = data.get("transaction_ids", [])
+    friend_ids= data.get("member_ids", [])
+    details   = data.get("details")
+
+    txs = Transaction.query.filter(Transaction.id.in_(tx_ids)).all()
+    if len(txs) != len(tx_ids) or any(tx.user_id != current_user.id for tx in txs):
+        abort(403, "Invalid or unauthorized transactions")
+
+    friends = User.query.filter(User.id.in_(friend_ids)).all()
+    if {u.id for u in friends} != set(friend_ids):
+        abort(403, "Some member_ids invalid")
+    for f in friends:
+        if f not in current_user.friends:
+            abort(403, f"{f.username} is not your friend")
+
+    #  Build deduped member list (always include creator - current user)
+    members = [current_user] + friends
+    unique  = {}
+    for u in members:
+        unique[u.id] = u
+    members = list(unique.values())
+
+    total    = sum(Decimal(str(tx.amount)) for tx in txs)
+    per_head = (total / Decimal(len(members))).quantize(
+                  Decimal("0.01"), rounding=ROUND_HALF_UP
+               )
+
+    if not details and txs:
+        details = txs[0].description
+    desc = (details or "").strip()[:240]
+
+    bill = Bill(
+        created_by  = current_user.id,
+        description = desc,
+        total       = total
+    )
+    db.session.add(bill)
+    db.session.flush()  
+
+    BillMember.query.filter_by(bill_id=bill.id).delete()
+
+    for u in members:
+        bm = BillMember(
+            bill_id = bill.id,
+            user_id = u.id,
+            share   = per_head,
+            paid    = Decimal("0.00"),
+            settled = False
+        )
+        db.session.add(bm)
+
+    db.session.commit()
+
+    return jsonify({"bill_id": bill.id}), 201
+
+@main.route("/api/bill/<int:bill_id>")
+@login_required
+def api_bill_get(bill_id):
+
+    bill = Bill.query.get_or_404(bill_id)
+    # visibility: creator or member
+    member_ids = {bm.user_id for bm in bill.members}
+    print(f"member_ids {member_ids}")
+    if current_user.id not in member_ids and bill.created_by != current_user.id:
+        abort(403)
+
+    return jsonify({
+        "id":          bill.id,
+        "description": bill.description,
+        "date":        bill.date.isoformat(),
+        "total":       float(bill.total),
+        "members": [{
+            "user_id": bm.user_id,
+            "username": bm.user.username,
+            "share":  float(bm.share),
+            "paid":   float(bm.paid),
+            "settled": bm.settled
+        } for bm in bill.members]
+    })
+
+@main.route('/bill/<int:bill_id>/delete', methods=['POST'])
+@login_required
+def bill_delete(bill_id):
+    bill = Bill.query.get_or_404(bill_id)
+    # only creator may delete
+    if bill.created_by != current_user.id:
+        abort(403)
+    db.session.delete(bill)
+    db.session.commit()
+    flash('Bill deleted.', 'success')
+    return redirect(url_for('main.bills_overview'))
 
 
 @main.route('/api/update_settings', methods=['POST'])
@@ -566,6 +787,50 @@ def api_update_settings():
         currency=current_user.settings.currency,
         budget=   float(current_user.settings.monthly_budget)
     ), 200
+
+
+@main.route('/api/bill/<int:bill_id>/apply_transaction', methods=['POST'])
+@login_required
+def api_apply_transaction(bill_id):
+    data = request.get_json(force=True)
+    tx_id = data.get('transaction_id')
+    amt   = Decimal(str(data.get('amount_applied', 0)))
+
+    bill = Bill.query.get_or_404(bill_id)
+    if bill.created_by != current_user.id:
+        abort(403)
+
+    # make sure the tx was suggested & not already used:
+    used = {bt.transaction_id for bt in bill.transactions}
+    if tx_id in used:
+        abort(400, "Already applied")
+    # you could also re-run fuzzy logic / friend check here if you like
+
+    # create the BillTransaction
+    bt = BillTransaction(
+      bill_id=bill.id,
+      transaction_id=tx_id,
+      amount_applied=amt
+    )
+    db.session.add(bt)
+
+    tf = TransactionFriend.query.filter_by(transaction_id=tx_id).first()
+    if tf:
+        bm = BillMember.query.filter_by(bill_id=bill.id, user_id=tf.friend_id).one()
+        bm.paid += amt
+
+    db.session.commit()
+    return jsonify({
+        "user_id":         bm.user_id,
+        "new_outstanding": float(bm.share - bm.paid),
+        "transaction": {
+            "id":            tx_id,
+            "date":          bt.transaction.date.isoformat(),
+            "description":   bt.transaction.description,
+            "amount_applied": float(amt)
+        }
+    }), 200
+
 
 #   ++++++++++++++++++++ helper functions +++++++++++++++++++++
 VENDOR_MAP = {
@@ -657,3 +922,55 @@ def month_starts(offset: int, count: int):
     step  = 1 if count > 0 else -1
     return [(start + relativedelta(months=i)).replace(day=1)
             for i in range(0, count, step)]
+
+
+def similar_transfers(base_tx, threshold: int = 80, limit: int = 20):
+    """
+    Return [(Transaction, score), …] that look like `base_tx`
+    (case-insensitive token-set fuzzy match on description).
+    """
+    q = (Transaction.query
+                     .filter(Transaction.user_id == base_tx.user_id,
+                             Transaction.id != base_tx.id)
+                     .limit(500))                # early cap for perf
+
+    matches = []
+    base_desc = base_tx.description.lower()
+    for cand in q:
+        score = fuzz.token_set_ratio(base_desc, cand.description.lower())
+        if score >= threshold:
+            matches.append((cand, score))
+
+    matches.sort(key=lambda t: -t[1])
+    return matches[:limit]
+
+def create_equal_bill(creator, transactions, members, details=None):
+    from decimal import Decimal, ROUND_HALF_UP
+
+    # sum up the amounts precisely
+    total = sum(Decimal(str(t.amount)) for t in transactions)
+    print(f"Total: {total}")
+    per_head = (total / Decimal(len(members))).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+    # if the front-end sent us a details string, use it
+    description = details or "; ".join(
+        {t.description for t in transactions}
+    )[:240]
+
+    bill = Bill(
+        created_by  = creator.id,
+        description = description,
+        total       = total
+    )
+    bill.members.extend(
+        BillMember(user_id=m.id, share=per_head, paid=Decimal("0.00"))
+        for m in members
+    )
+
+    # Optionally: link each selected transaction to the bill's creator as a 'friend'
+    # by creating TransactionFriend entries here if that's your model.
+
+    db.session.add(bill)
+    return bill

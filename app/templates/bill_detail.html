@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Bill #{{ bill.id }}{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Bill: {{ bill.description }}</h1>
+  <p><strong>Date:</strong> {{ bill.date.strftime('%d %b %Y') }}</p>
+  <p><strong>Total:</strong> ${{ '%.2f' | format(bill.total) }}</p>
+
+  <div class="card">
+    <h2>Members</h2>
+    <table class="transaction-table">
+      <thead>
+        <tr><th>User</th><th>Share</th><th>Paid</th><th>Outstanding</th></tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+          {% set out = m.share - m.paid %}
+          <tr data-user="{{ m.user_id }}">
+            <td>{{ m.user.username }}</td>
+            <td>${{ '%.2f'|format(m.share) }}</td>
+            <td>${{ '%.2f'|format(m.paid) }}</td>
+            <td class="outstanding-cell">${{ '%.2f'|format(out) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Applied Transfers</h2>
+    <ul id="applied-list" class="user-list">
+      {% for tf in bill.transactions %}
+        <li>
+          {{ tf.transaction.date.strftime('%d %b %Y') }}
+          – {{ tf.transaction.description }}
+          – ${{ '%.2f'|format(tf.amount_applied) }}
+        </li>
+      {% else %}
+        <li>No payments applied yet.</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Available Transfers to Apply</h2>
+    <ul class="user-list" id="suggested-list">
+      {% for tx in suggested %}
+        <li>
+          {{ tx.date.strftime('%d %b %Y') }}
+          – {{ tx.description }}
+          – ${{ '%.2f'|format(tx.amount) }}
+          <button
+            type="button"
+            class="btn btn--sm apply-btn"
+            data-bill="{{ bill.id }}"
+            data-tx="{{ tx.id }}"
+          >Apply</button>
+        </li>
+      {% else %}
+        <li style="color:#94a3b8">No other transfers available.</li>
+      {% endfor %}
+    </ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // helper to format ISO => "DD Mon YYYY"
+  function formatDate(iso) {
+    const d = new Date(iso);
+    const day = String(d.getDate()).padStart(2,'0');
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun",
+                        "Jul","Aug","Sep","Oct","Nov","Dec"];
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  }
+
+  async function applyPayment(billId, txId) {
+    const amt = parseFloat(prompt("How much of this transfer do you want to apply?"));
+    if (isNaN(amt) || amt <= 0) return;
+
+    const resp = await fetch(`/api/bill/${billId}/apply_transaction`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': JSON.parse(document.getElementById('app-config').textContent).csrf
+      },
+      body: JSON.stringify({ transaction_id: txId, amount_applied: amt })
+    });
+
+    if (!resp.ok) {
+      alert("Could not apply payment");
+      return;
+    }
+
+    const data = await resp.json();
+
+    const row = document.querySelector(`tr[data-user="${data.user_id}"]`);
+    if (row) {
+      row.querySelector('.outstanding-cell')
+         .textContent = `$${data.new_outstanding.toFixed(2)}`;
+    }
+
+    const btn = document.querySelector(`button[data-tx="${data.transaction.id}"]`);
+    if (btn) btn.closest('li').remove();
+
+    const appliedUl = document.getElementById('applied-list');
+    const firstLi = appliedUl.firstElementChild;
+    if (firstLi && firstLi.textContent.trim() === 'No payments applied yet.') {
+      appliedUl.innerHTML = '';
+    }
+
+    const t = data.transaction;
+    const li = document.createElement('li');
+    li.textContent = `${formatDate(t.date)} – ${t.description} – $${t.amount_applied.toFixed(2)}`;
+    appliedUl.appendChild(li);
+  }
+
+  document.getElementById('suggested-list')
+          .addEventListener('click', e => {
+    const btn = e.target.closest('.apply-btn');
+    if (!btn) return;
+    applyPayment(btn.dataset.bill, btn.dataset.tx);
+  });
+</script>
+{% endblock %}
