@@ -1,4 +1,4 @@
-
+from sqlalchemy.sql import func
 from . import db
 from flask_login import UserMixin
 import enum
@@ -95,4 +95,71 @@ class Transaction(db.Model):
         back_populates='transactions'
     )
 
+class BillTransaction(db.Model):
+    __tablename__ = 'bill_transaction'
+    id             = db.Column(db.Integer, primary_key=True)
+    bill_id        = db.Column(db.Integer, db.ForeignKey('bill.id', ondelete='CASCADE'), nullable=False)
+    transaction_id = db.Column(db.Integer, db.ForeignKey('transactions.id', ondelete='CASCADE'), nullable=False)
+    amount_applied = db.Column(db.Numeric(12,2), nullable=False)
+
+    bill        = db.relationship('Bill', back_populates='transactions')
+    transaction = db.relationship('Transaction')
     
+
+class Bill(db.Model):
+    __tablename__ = "bill"
+    
+    transactions = db.relationship(
+        'BillTransaction',
+        back_populates='bill',
+        cascade='all, delete-orphan'
+    )
+
+    id           = db.Column(db.Integer, primary_key=True)
+    created_by   = db.Column(db.Integer,
+                             db.ForeignKey("users.id", ondelete="CASCADE"),
+                             nullable=False)
+    description  = db.Column(db.String(255))
+    date         = db.Column(db.Date, default=func.current_date(), nullable=False)
+    total        = db.Column(db.Numeric(12, 2), nullable=False)
+    settled      = db.Column(db.Boolean, default=False)
+
+    members = db.relationship(
+        "BillMember",
+        back_populates="bill",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+class BillMember(db.Model):
+    __tablename__ = "bill_member"
+
+    id        = db.Column(db.Integer, primary_key=True)
+    bill_id   = db.Column(db.Integer,
+                          db.ForeignKey("bill.id", ondelete="CASCADE"),
+                          nullable=False)
+    user_id   = db.Column(db.Integer,
+                          db.ForeignKey("users.id", ondelete="CASCADE"),
+                          nullable=False)
+    share     = db.Column(db.Numeric(12, 2), nullable=False)     # “what I owe”
+    paid      = db.Column(db.Numeric(12, 2), default=0)          # “what I have paid”
+    settled   = db.Column(db.Boolean, default=False)
+
+    bill  = db.relationship("Bill", back_populates="members")
+    user  = db.relationship("User")
+
+class TransactionFriend(db.Model):
+    """
+    1-to-N link between an existing Transaction and friends it’s associated to.
+    Confidence stores the similarity score shown to the user for transparency.
+    """
+    __tablename__ = "transaction_friend"
+
+    id             = db.Column(db.Integer, primary_key=True)
+    transaction_id = db.Column(db.Integer,
+                               db.ForeignKey("transactions.id", ondelete="CASCADE"),
+                               nullable=False)
+    friend_id      = db.Column(db.Integer,
+                               db.ForeignKey("users.id", ondelete="CASCADE"),
+                               nullable=False)
+    confidence     = db.Column(db.Float, default=1.0)

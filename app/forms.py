@@ -41,6 +41,7 @@ class TransactionForm(FlaskForm):
         choices=[
             ('',         '— choose one —'),
             ('food',     'Food'),
+            ('groceries','Groceries'),
             ('shopping', 'Shopping'),
             ('health',   'Health'),
             ('salary',   'Salary'),

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}My Bills{% endblock %}
+
+{% block head %}
+<style>
+  /* Match history page styling */
+  .transaction-table { width:100%; border-collapse:collapse; }
+  .transaction-table th,
+  .transaction-table td {
+    padding:8px 10px;
+    text-align:left;
+    vertical-align:middle;
+  }
+  .transaction-table th { background:#f2f5f8; }
+  .transaction-table tr:nth-child(even) { background:#fafafa; }
+
+  .btn--sm { font-size:0.9em; padding:2px 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>My Bills</h1>
+
+  <div class="card">
+    <table class="transaction-table" id="bills-table">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Description</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th style="width:48px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for b in bills %}
+        <tr data-bill-id="{{ b.id }}">
+          <td>{{ b.date.strftime('%d %b %Y') }}</td>
+          <td>
+            <a href="{{ url_for('main.bill_detail', bill_id=b.id) }}">
+              {{ b.description }}
+            </a>
+          </td>
+          <td>${{ '%.2f'|format(b.total) }}</td>
+          <td>{{ 'Settled' if b.settled else 'Open' }}</td>
+          <td style="text-align:center">
+            <button class="btn btn--sm btn-delete" title="Delete">🗑️</button>
+          </td>
+        </tr>
+      {% else %}
+        <tr id="no-bills">
+          <td colspan="5" style="text-align:center;color:#94a3b8">
+            No bills yet.
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+;(function(){
+  // pull CSRF from global config
+  const cfg       = JSON.parse(document.getElementById('app-config').textContent);
+  const csrfToken = cfg.csrf;
+  const table     = document.getElementById('bills-table');
+
+  table.addEventListener('click', async e => {
+    const btn = e.target.closest('.btn-delete');
+    if (!btn) return;
+    const row    = btn.closest('tr');
+    const billId = row.dataset.billId;
+
+    if (!confirm('Delete this bill?')) return;
+
+    try {
+      const res = await fetch(`/bill/${billId}/delete`, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': csrfToken
+        }
+      });
+      if (res.ok) {
+        row.remove();
+        // if table empty, show "No bills yet."
+        if (!table.querySelector('tbody tr')) {
+          const no = document.createElement('tr');
+          no.id = 'no-bills';
+          no.innerHTML = `
+            <td colspan="5" style="text-align:center;color:#94a3b8">
+              No bills yet.
+            </td>`;
+          table.querySelector('tbody').append(no);
+        }
+      } else {
+        alert('Could not delete—please try again.');
+      }
+    } catch(err) {
+      console.error(err);
+      alert('Network error.');
+    }
+  });
+})();
+</script>
+{% endblock %}
