@@ -271,7 +271,12 @@ const member_ids = Array.from(
   });
   if(r.status===201){
   const {bill_id} = await r.json();
-  //window.location.href = `/bill/${bill_id}`;
+  alert('Bill created successfully!'); 
+  //  ask if user wants to go to the bill page
+  const go = confirm('Go to the bill page?');
+  if (go) {
+    window.location.href = `/bill/${bill_id}`;
+  }
   return;
     }else{
     alert('Could not create bill — check console.'); console.error(await r.text());

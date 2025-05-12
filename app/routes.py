@@ -712,11 +712,16 @@ def api_bill_create():
     BillMember.query.filter_by(bill_id=bill.id).delete()
 
     for u in members:
+        #  if the user is the creator, assume they have paid their share( since the transaction belongs to the creator)
+        if u.id == current_user.id:
+            paidAmt = per_head
+        else:
+            paidAmt = Decimal("0.00")
         bm = BillMember(
             bill_id = bill.id,
             user_id = u.id,
             share   = per_head,
-            paid    = Decimal("0.00"),
+            paid    = paidAmt,
             settled = False
         )
         db.session.add(bm)
