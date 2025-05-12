@@ -20,40 +20,12 @@
   </div>
 
   <div class="profile-content-container">
-  <section class="profile-section">
-    <h2>Financial Goals</h2>
-    <div class="card">
-      <div class="goal-list" id="goal-list">
-        <!-- Sample goals -->
-        <div class="goal-item">Buy a new car - $30,000 by 2025-01-01</div>
-        <div class="goal-item">Save for vacation - $5,000 by 2025-12-01</div>
-        <!-- Existing goals can be dynamically populated here -->
-        {% for goal in current_user.goals %}
-          <div class="goal-item">{{ goal.name }} - ${{ goal.amount }} by {{ goal.target_date }}</div>
-        {% endfor %}
-      </div>
-
-      <!-- Add New Goal Form -->
-      <form class="add-form" onsubmit="addGoal(event)">
-        <h3 class="section-title">Add New Goal</h3>
-        <input type="text" id="goal-name" placeholder="Goal Name" class="input-box" required>
-        <input type="number" id="target-amount" placeholder="Target Amount ($)" class="input-box" required>
-        <input type="date" id="target-date" class="input-box" required>
-
-        <button type="submit" class="button">Add Goal</button>
-      </form>
-    </div>
-  </section>
-
-  <section class="profile-section">
+  
     <div class="card">
       <!-- Display fields -->
       <div class="goal-list" id="goal-list">
-        <div class=" goal-item">Your currency:
-        <span id="current-currency">{{ current_user.settings.currency }}</span>
-        </div>
         <div class=" goal-item">Your Monthly Budget:
-          $<span id="current-budget">{{ current_user.settings.budget }}</span>
+          $<span id="current-budget">{{ current_user.settings.monthly_budget }}</span>
         </div>
           
         <div class = "goal-item">
@@ -83,7 +55,6 @@
 
       </div>
     </div>
-  </section>
       
 
 <script>
@@ -122,8 +93,8 @@ const CSRF = cfg.csrf;
     if (res.ok) {
       const data = await res.json();
       // Update the display spans
-      document.getElementById('current-currency').textContent = data.currency;
-      document.getElementById('current-budget').textContent   = data.budget.toFixed(2);
+      document.getElementById('current-budget').textContent = data.budget.toFixed(2);
+      document.getElementById('budget-input').value      = data.budget.toFixed(2);
 
       // Show confirmation message
       const msg = document.getElementById('settings-msg');

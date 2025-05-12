@@ -42,6 +42,7 @@ class TransactionForm(FlaskForm):
             ('',         '— choose one —'),
             ('food',     'Food'),
             ('groceries','Groceries'),
+            ('travel',    'Travel'),
             ('shopping', 'Shopping'),
             ('health',   'Health'),
             ('salary',   'Salary'),
