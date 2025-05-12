@@ -49,7 +49,7 @@
         <li>
           {{ tx.date.strftime('%d %b %Y') }}
           – {{ tx.description }}
-          – ${{ '%.2f'|format(tx.amount) }}
+          – ${{ '%.2f'|format(tx.remaining) }} remaining
           <button
             type="button"
             class="btn btn--sm apply-btn"
@@ -100,6 +100,12 @@
 
     const row = document.querySelector(`tr[data-user="${data.user_id}"]`);
     if (row) {
+
+      //  update the row with new values
+      
+      row.querySelector('td:nth-child(3)').textContent =
+        `$${data.new_paid.toFixed(2)}`;
+
       row.querySelector('.outstanding-cell')
          .textContent = `$${data.new_outstanding.toFixed(2)}`;
     }

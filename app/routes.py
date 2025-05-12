@@ -6,7 +6,8 @@ from math import ceil
 from io import TextIOWrapper
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, abort
 from flask_login import login_user, logout_user, current_user, login_required
-from . import db, bcrypt
+from werkzeug.security import generate_password_hash, check_password_hash
+from . import db
 from .models import User, UserSettings, Transaction, TransactionType, Bill, BillMember,BillTransaction, TransactionFriend
 from app.forms import TransactionForm, RegistrationForm, LoginForm, LogoutForm
 from datetime import datetime,date, timedelta
@@ -18,12 +19,14 @@ from sqlalchemy import func, extract
 
 main = Blueprint('main', __name__)
 
+
+
+# ++++++++++++++++++++++ home and dashboard +++++++++++++++++++++
 @main.route('/')
 def home():
     if current_user.is_authenticated:
         return redirect(url_for('main.profile'))
     return render_template('home6.html')
-
 
 
 @main.route('/dashboard')
@@ -32,12 +35,36 @@ def dashboard():
     data = gather_dashboard_data(current_user)
     return render_template('dashboard.html', **data)
 
+@main.route('/shared_dashboard/<int:user_id>')
+@login_required
+def shared_dashboard(user_id):
+    other = User.query.get_or_404(user_id)
+
+    # only allow if `other` friended you
+    if other not in current_user.friended_by:
+        abort(403)
+
+    # reuse your dashboard logic
+    data = gather_dashboard_data(other)
+    # pass in `shared_user` so the template can say “Viewing X’s dashboard”
+    return render_template(
+    'dashboard.html',
+    **data,
+    shared_user      = other.username,   # for the H1
+    view_user_id     = other.id          # for JS
+)
+
+# ++++++++++++++++++++++ END home and dashboard +++++++++++++++++++++
+
+
+
+# ++++++++++++++++++++++ user management +++++++++++++++++++++
 @main.route('/register', methods=['GET','POST'])
 def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         # hash the password
-        pw_hash = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+        pw_hash = generate_password_hash(form.password.data).decode('utf-8')
         user = User(username=form.username.data,
                     email=form.email.data,
                     password=pw_hash)
@@ -60,7 +87,7 @@ def login():
         # look up the user
         user = User.query.filter_by(email=form.email.data).first()
         # verify password
-        if user and bcrypt.check_password_hash(user.password, form.password.data):
+        if user and check_password_hash(user.password, form.password.data):
             login_user(user, remember=form.remember.data)
             return redirect(url_for('main.profile'))
         flash('Login failed. Check your email and password.', 'danger')
@@ -74,8 +101,132 @@ def profile():
     logout_form = LogoutForm()
     return render_template('profile.html',logout_form=logout_form)
 
+@main.route('/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('main.login'))
+
+@main.route('/friends')
+@login_required
+def friends():
+    logout_form = LogoutForm()
+    return render_template('friends.html', logout_form=logout_form)
 
 
+
+@main.route("/api/user_search")
+@login_required
+def api_user_search():
+    q = request.args.get("q", "").strip()
+    query = User.query.filter(User.id != current_user.id)
+    if q:
+        query = query.filter(User.username.ilike(f"%{q}%"))
+    matches = query.order_by(User.username).limit(10).all()
+
+    # pre-fetch  friend IDs into a set
+    my_friend_ids = {u.id for u in current_user.friends}
+
+    payload = []
+    for u in matches:
+        payload.append({
+            "id":         u.id,
+            "username":   u.username,
+            "is_friend":  u.id in my_friend_ids
+        })
+    return jsonify(payload)
+
+
+@main.route("/api/add_friend", methods=["POST"])
+@login_required
+def api_add_friend():
+    data = request.get_json(silent=True) or {}
+    friend_id = data.get("friend_id")
+
+    # quick validations
+    if not isinstance(friend_id, int) or friend_id == current_user.id:
+        abort(400, "Invalid friend_id")
+
+    friend = User.query.get_or_404(friend_id)
+
+    if friend in current_user.friends:
+        return jsonify({"status": "already_friends"}), 200
+
+    current_user.friends.append(friend)
+    db.session.commit()
+    return jsonify({"status": "added"}), 201
+
+
+@main.route("/api/remove_friend", methods=["POST"])
+@login_required
+def api_remove_friend():
+    data = request.get_json(silent=True) or {}
+    friend_id = data.get("friend_id")
+
+    if not isinstance(friend_id, int) or friend_id == current_user.id:
+        abort(400, "Invalid friend_id")
+
+    friend = User.query.get_or_404(friend_id)
+
+    if friend not in current_user.friends:
+        return jsonify({"status": "not_friends"}), 200
+
+    current_user.friends.remove(friend)
+    db.session.commit()
+    return jsonify({"status": "removed"}), 200
+
+
+@main.route("/api/friends")
+@login_required
+def api_friends():
+    payload = [
+        {"id": f.id, "username": f.username}
+        for f in sorted(current_user.friends, key=lambda u: u.username.lower())
+    ]
+    return jsonify(payload)
+
+@main.route('/api/shared_users')
+@login_required
+def api_shared_users():
+    shared = list(current_user.friended_by)  
+    shared.sort(key=lambda u: u.username)
+    return jsonify([{"id": u.id, "username": u.username} for u in shared])
+
+
+
+@main.route('/api/update_settings', methods=['POST'])
+@login_required
+def api_update_settings():
+    data = request.get_json(silent=True)
+    if not data:
+        abort(400, 'Invalid payload')
+
+    currency = data.get('currency', '').strip()
+    budget   = data.get('budget')
+    if not currency or not isinstance(budget, (int, float)):
+        abort(400, 'currency and budget are required')
+
+    if current_user.settings is None:
+        current_user.settings = UserSettings(user_id=current_user.id)
+        db.session.add(current_user.settings)
+
+    current_user.settings.currency       = currency
+    current_user.settings.monthly_budget = budget
+    db.session.commit()
+
+    return jsonify(
+        currency=current_user.settings.currency,
+        budget=   float(current_user.settings.monthly_budget)
+    ), 200
+
+
+# ++++++++++++++++++++++ END user management +++++++++++++++++++++
+
+
+
+
+# ++++++++++++++++++++++ transaction management +++++++++++++++++++++
 @main.route('/transactionForm', methods=['GET', 'POST'])
 @login_required
 def transactionForm():
@@ -272,99 +423,6 @@ def submission():
         tx_type  = tx_type
     )
 
-@main.route('/splitBill')
-@login_required
-def splitBill():                      
-    """
-    Renders the bill-splitting workspace.
-    • `transactions` – last 200 transfers/in-flow/out-flow records
-                       (enough for fuzzy matching)
-    • `friends`      – current_user.friends for the dropdown
-    """
-    recent_tx = (Transaction.query
-                 .filter(Transaction.user_id == current_user.id,
-                         Transaction.type.in_([
-                         TransactionType.transfer,
-                         TransactionType.expense,
-                         TransactionType.income
-                        ]))
-                 .order_by(Transaction.date.desc())
-                 .limit(200)
-                 .all())
-
-    friends = sorted(current_user.friends, key=lambda u: u.username.lower())
-
-    return render_template(
-        'splitBill.html',
-        transactions=recent_tx,
-        friends=friends,
-    )
-
-
-@main.route('/bills')
-@login_required
-def bills_overview():
-    # bills you created OR you are a member of
-    q = (Bill.query
-         .filter(
-            db.or_(
-              Bill.created_by == current_user.id,
-              Bill.members.any(BillMember.user_id == current_user.id)
-            ))
-         .order_by(Bill.date.desc()))
-    print(q.all())
-    return render_template('bills.html', bills=q.all())
-
-
-@main.route('/bill/<int:bill_id>')
-@login_required
-def bill_detail(bill_id):
-    bill = Bill.query.get_or_404(bill_id)
-
-    # security: must be creator or member
-    member_ids = {bm.user_id for bm in bill.members}
-    if current_user.id not in member_ids and bill.created_by != current_user.id:
-        abort(403)
-
-    #  all transactions already applied to *any* bill
-    used_all = db.session.query(BillTransaction.transaction_id).subquery()
-
-    #  only suggest those fuzzy-linked transactions that are NOT in used_all
-    suggested = (
-        Transaction.query
-                   .join(TransactionFriend, Transaction.id == TransactionFriend.transaction_id)
-                   .filter(
-                       TransactionFriend.friend_id.in_(member_ids),
-                       ~Transaction.id.in_(used_all)
-                   )
-                   .all()
-    )
-
-    return render_template(
-        'bill_detail.html',
-        bill=bill,
-        members=bill.members,
-        suggested=suggested
-    )
-
-@main.route('/logout', methods=['POST'])
-@login_required
-def logout():
-    logout_user()
-    flash('You have been logged out.', 'info')
-    return redirect(url_for('main.login'))
-
-@main.route('/friends')
-@login_required
-def friends():
-    logout_form = LogoutForm()
-    return render_template('friends.html', logout_form=logout_form)
-
-
-
-#   ++++++++++++++++++ API endpoints +++++++++++++++++++++
-
-
 #   grouped transaction by category
 @main.route('/api/transaction')
 @login_required
@@ -410,7 +468,6 @@ def api_transactions():
     return jsonify(data)
 
 
-
 @main.route('/api/update_transaction', methods=['POST'])
 @login_required
 def api_update_transaction():
@@ -429,13 +486,22 @@ def api_update_transaction():
     db.session.commit()
     return jsonify({'success': True, 'category': new_category}), 200
 
+#   ++++++++++++++++++++++ END transaction management +++++++++++++++++++++
 
-# ++++++++++++++++++++++ forecast +++++++++++++++++++++
+
+
+
+
+
+#   ++++++++++++++++++++++ forecast ++++++++++++++++++++++++++++++
 
 @main.route("/forecast")
 @login_required
 def forecast():
     return render_template("forecast.html")
+
+
+
 
 @main.route("/api/forecast")
 @login_required
@@ -515,109 +581,80 @@ def api_forecast_simulate():
 
     return jsonify(series=adjusted, advice=advice)
 
+#   ++++++++++++++++++++++ END forecast ++++++++++++++++++++++++++++++
 
-# +++++++++++++++++++ sharing feature +++++++++++++++=+++
 
-@main.route("/api/user_search")
+#   ++++++++++++++++++++++ bill splitting +++++++++++++++++++++
+@main.route('/splitBill')
 @login_required
-def api_user_search():
-    q = request.args.get("q", "").strip()
-    query = User.query.filter(User.id != current_user.id)
-    if q:
-        query = query.filter(User.username.ilike(f"%{q}%"))
-    matches = query.order_by(User.username).limit(10).all()
+def splitBill():                      
+    """
+    Renders the bill-splitting workspace.
+    • `transactions` – last 200 transfers/in-flow/out-flow records
+                       (enough for fuzzy matching)
+    • `friends`      – current_user.friends for the dropdown
+    """
+    recent_tx = (Transaction.query
+                 .filter(Transaction.user_id == current_user.id,
+                         Transaction.type.in_([
+                         TransactionType.transfer,
+                         TransactionType.expense,
+                         TransactionType.income
+                        ]))
+                 .order_by(Transaction.date.desc())
+                 .limit(200)
+                 .all())
 
-    # pre-fetch  friend IDs into a set
-    my_friend_ids = {u.id for u in current_user.friends}
+    friends = sorted(current_user.friends, key=lambda u: u.username.lower())
 
-    payload = []
-    for u in matches:
-        payload.append({
-            "id":         u.id,
-            "username":   u.username,
-            "is_friend":  u.id in my_friend_ids
-        })
-    return jsonify(payload)
+    return render_template(
+        'splitBill.html',
+        transactions=recent_tx,
+        friends=friends,
+    )
 
 
-@main.route("/api/add_friend", methods=["POST"])
+@main.route('/bills')
 @login_required
-def api_add_friend():
-    data = request.get_json(silent=True) or {}
-    friend_id = data.get("friend_id")
-
-    # quick validations
-    if not isinstance(friend_id, int) or friend_id == current_user.id:
-        abort(400, "Invalid friend_id")
-
-    friend = User.query.get_or_404(friend_id)
-
-    if friend in current_user.friends:
-        return jsonify({"status": "already_friends"}), 200
-
-    current_user.friends.append(friend)
-    db.session.commit()
-    return jsonify({"status": "added"}), 201
+def bills_overview():
+    # bills you created OR you are a member of
+    q = (Bill.query
+         .filter(
+            db.or_(
+              Bill.created_by == current_user.id,
+              Bill.members.any(BillMember.user_id == current_user.id)
+            ))
+         .order_by(Bill.date.desc()))
+    print(q.all())
+    return render_template('bills.html', bills=q.all())
 
 
-@main.route("/api/remove_friend", methods=["POST"])
+@main.route('/bill/<int:bill_id>')
 @login_required
-def api_remove_friend():
-    data = request.get_json(silent=True) or {}
-    friend_id = data.get("friend_id")
+def bill_detail(bill_id):
+    bill = Bill.query.get_or_404(bill_id)
 
-    if not isinstance(friend_id, int) or friend_id == current_user.id:
-        abort(400, "Invalid friend_id")
-
-    friend = User.query.get_or_404(friend_id)
-
-    if friend not in current_user.friends:
-        return jsonify({"status": "not_friends"}), 200
-
-    current_user.friends.remove(friend)
-    db.session.commit()
-    return jsonify({"status": "removed"}), 200
-
-
-@main.route("/api/friends")
-@login_required
-def api_friends():
-    payload = [
-        {"id": f.id, "username": f.username}
-        for f in sorted(current_user.friends, key=lambda u: u.username.lower())
-    ]
-    return jsonify(payload)
-
-@main.route('/api/shared_users')
-@login_required
-def api_shared_users():
-    shared = list(current_user.friended_by)  
-    shared.sort(key=lambda u: u.username)
-    return jsonify([{"id": u.id, "username": u.username} for u in shared])
-
-
-
-@main.route('/shared_dashboard/<int:user_id>')
-@login_required
-def shared_dashboard(user_id):
-    other = User.query.get_or_404(user_id)
-
-    # only allow if `other` friended you
-    if other not in current_user.friended_by:
+    # security: must be creator or member
+    member_ids = {bm.user_id for bm in bill.members}
+    if current_user.id not in member_ids and bill.created_by != current_user.id:
         abort(403)
 
-    # reuse your dashboard logic
-    data = gather_dashboard_data(other)
-    # pass in `shared_user` so the template can say “Viewing X’s dashboard”
+    #  get all transactions that are linked to the bill
+    cand_q = (Transaction.query
+                    .join(TransactionFriend, Transaction.id == TransactionFriend.transaction_id)
+                    .filter(TransactionFriend.friend_id.in_(member_ids))
+             )
+
+    # only keep those with a positive remaining amount
+    suggested = [t for t in cand_q
+                     if t.remaining > 0]
+
     return render_template(
-    'dashboard.html',
-    **data,
-    shared_user      = other.username,   # for the H1
-    view_user_id     = other.id          # for JS
-)
-
-
-#  ++++++++++++++++++ bill splitting +++++++++++++++++++++
+        'bill_detail.html',
+        bill=bill,
+        members=bill.members,
+        suggested=suggested
+    )
 
 @main.route("/api/bill/suggest_friends/<int:tx_id>")
 @login_required
@@ -768,32 +805,6 @@ def bill_delete(bill_id):
     return redirect(url_for('main.bills_overview'))
 
 
-@main.route('/api/update_settings', methods=['POST'])
-@login_required
-def api_update_settings():
-    data = request.get_json(silent=True)
-    if not data:
-        abort(400, 'Invalid payload')
-
-    currency = data.get('currency', '').strip()
-    budget   = data.get('budget')
-    if not currency or not isinstance(budget, (int, float)):
-        abort(400, 'currency and budget are required')
-
-    if current_user.settings is None:
-        current_user.settings = UserSettings(user_id=current_user.id)
-        db.session.add(current_user.settings)
-
-    current_user.settings.currency       = currency
-    current_user.settings.monthly_budget = budget
-    db.session.commit()
-
-    return jsonify(
-        currency=current_user.settings.currency,
-        budget=   float(current_user.settings.monthly_budget)
-    ), 200
-
-
 @main.route('/api/bill/<int:bill_id>/apply_transaction', methods=['POST'])
 @login_required
 def api_apply_transaction(bill_id):
@@ -828,6 +839,7 @@ def api_apply_transaction(bill_id):
     return jsonify({
         "user_id":         bm.user_id,
         "new_outstanding": float(bm.share - bm.paid),
+        "new_paid":      float(bm.paid),
         "transaction": {
             "id":            tx_id,
             "date":          bt.transaction.date.isoformat(),
@@ -835,6 +847,10 @@ def api_apply_transaction(bill_id):
             "amount_applied": float(amt)
         }
     }), 200
+
+#   ++++++++++++++++++++++ END bill splitting +++++++++++++++++++++
+
+
 
 
 #   ++++++++++++++++++++ helper functions +++++++++++++++++++++

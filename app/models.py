@@ -94,6 +94,14 @@ class Transaction(db.Model):
         'User',
         back_populates='transactions'
     )
+    bill_transactions = db.relationship('BillTransaction',
+                                        back_populates='transaction')
+    @property
+    def remaining(self):
+        # sum up everything that’s been applied across *all* bills
+        applied = sum(bt.amount_applied for bt in self.bill_transactions)
+        return float(self.amount) - float(applied)
+
 
 class BillTransaction(db.Model):
     __tablename__ = 'bill_transaction'
@@ -122,8 +130,11 @@ class Bill(db.Model):
     description  = db.Column(db.String(255))
     date         = db.Column(db.Date, default=func.current_date(), nullable=False)
     total        = db.Column(db.Numeric(12, 2), nullable=False)
-    settled      = db.Column(db.Boolean, default=False)
 
+    @property
+    def settled(self):
+        return all(bm.paid >= bm.share for bm in self.members)
+    
     members = db.relationship(
         "BillMember",
         back_populates="bill",
