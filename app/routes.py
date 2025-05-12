@@ -681,7 +681,7 @@ def api_bill_suggest_friends(tx_id):
 def api_bill_associate_friend():
     """
     Body: { transaction_id: int, friend_id: int, confidence: float? }
-    Links a **single** transaction to a friend.
+    Links a single transaction to a friend.
     """
     data = request.get_json(silent=True) or {}
     tx_id     = data.get("transaction_id")
@@ -689,6 +689,13 @@ def api_bill_associate_friend():
     conf      = float(data.get("confidence", 1.0))
 
     tx   = Transaction.query.get_or_404(tx_id)
+
+    existing = TransactionFriend.query.filter_by(transaction_id=tx_id).first()
+    if existing:
+        # remind who it’s linked to
+        other = User.query.get(existing.friend_id)
+        return jsonify({"error": f"Already tagged to {other.username}"}), 400
+
     fr   = User.query.get_or_404(friend_id)
 
     if tx.user_id != current_user.id or fr not in current_user.friends:
@@ -697,7 +704,7 @@ def api_bill_associate_friend():
     link = TransactionFriend(transaction_id=tx.id,
                              friend_id=fr.id,
                              confidence=conf)
-    db.session.merge(link)          # idempotent upsert
+    db.session.merge(link)          
     db.session.commit()
     return "", 204
 

@@ -94,6 +94,8 @@
       </tbody>
     </table>
 
+    
+
     <div id="friend-modal" style="
      display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
      z-index:1000;align-items:center;justify-content:center;">
@@ -285,33 +287,49 @@ $fList.addEventListener('click', async e=>{
   const btn = e.target.closest('button[data-id]'); if(!btn) return;
   const fid = +btn.dataset.id, fname = btn.dataset.name;
 
-  /* tag the active transfer */
-  await fetch('/api/bill/associate',{
+  const res = await fetch('/api/bill/associate', {
     method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
-    body:JSON.stringify({transaction_id:activeTxId, friend_id:fid})
+    headers:{
+      'Content-Type':'application/json',
+      'X-CSRFToken': csrf
+    },
+    body: JSON.stringify({
+      transaction_id: activeTxId,
+      friend_id: fid
+    })
   });
 
-  /* look for similar transfers */
-  const r = await fetch(`/api/bill/suggest_friends/${activeTxId}`);
-  const list = r.ok ? await r.json() : [];
-  if(list.length){
+  // If it failed to associate, show the error and bail out
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || 'Could not tag transfer');
+    return;
+  }
+
+  // On success, tag similars if desired
+  const r2 = await fetch(`/api/bill/suggest_friends/${activeTxId}`);
+  const list = r2.ok ? await r2.json() : [];
+  if (list.length) {
     const yes = confirm(`Also tag ${list.length} similar transfers to ${fname}?`);
-    if(yes){
-      for(const t of list){
-        await fetch('/api/bill/associate',{
-          method:'POST',
-          headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
-          body:JSON.stringify({
-            transaction_id:t.id,
-            friend_id:fid,
-            confidence:t.score/100
+    if (yes) {
+      for (const t of list) {
+        await fetch('/api/bill/associate', {
+          method: 'POST',
+          headers: {
+            'Content-Type':'application/json',
+            'X-CSRFToken': csrf
+          },
+          body: JSON.stringify({
+            transaction_id: t.id,
+            friend_id:         fid,
+            confidence:        t.score / 100
           })
         });
       }
     }
+    alert('Transfer(s) linked!');
   }
-  alert('Transfer(s) linked!');
+
   closeModal();
 });
 
