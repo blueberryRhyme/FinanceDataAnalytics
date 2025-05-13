@@ -64,7 +64,7 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         # hash the password
-        pw_hash = generate_password_hash(form.password.data).decode('utf-8')
+        pw_hash = generate_password_hash(form.password.data)
         user = User(username=form.username.data,
                     email=form.email.data,
                     password=pw_hash)

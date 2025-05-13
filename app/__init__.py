@@ -9,10 +9,14 @@ db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
 
-def create_app():
+def create_app(config_object=None):
     app = Flask(__name__)
     
-    app.config.from_object('config.Config')
+    if config_object:
+        app.config.from_object(config_object)
+    else:
+        app.config.from_pyfile('../config.py')
+    
     
     #   cross site request forgery
     CSRFProtect(app)
@@ -21,9 +25,6 @@ def create_app():
     migrate.init_app(app, db) 
     login_manager.init_app(app)
     
-
-    with app.app_context():
-        alembic_upgrade()
 
     # Import User model here to avoid circular imports
     from .models import User
