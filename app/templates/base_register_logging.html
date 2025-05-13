@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <script id="app-config" type="application/json">
+    {{
+      {
+        "csrf": csrf_token(),
+        "viewUserId": view_user_id if view_user_id is defined else None
+      } | tojson
+    }}
+  </script>
+
+
+
+
+  <title>{% block title %}$$$${% endblock %}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+  <style>
+    /* Base-specific styles that aren't in main.css */
+    .site-footer{
+      position: fixed;
+      left: 0px;
+      bottom: 0px;
+      width: 100%;
+
+    }
+    
+    .site-content {
+      padding: 2em;
+      flex: 1;
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+
+    }
+  </style>
+    {% block head %}{% endblock %}
+
+</head>
+<body>
+  <header class="site-header">
+
+    <div class="navigation-container">
+      <nav class="main-nav">
+        <a href="{{ url_for('main.home') }}" class="nav-link">Finance App</a>
+      </nav>
+    </div>
+
+  </header>
+
+  <main class="site-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="site-footer">
+    <p>© 2025 Agile-Web-Dev Group 9 </p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+
+</body>
+</html>
