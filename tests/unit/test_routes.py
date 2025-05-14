@@ -36,6 +36,23 @@ class RoutesTestCase(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b'Dashboard', resp.data)
 
+    def test_logout_flow(self):
+        # login first
+        self.client.post(
+            '/login',
+            data={'email': 't@example.com', 'password': 'secret'},
+            follow_redirects=True
+        )
+
+        # logout
+        resp = self.client.post('/logout', follow_redirects=True)
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b'You have been logged out.', resp.data)
+
+        # attempt to access a protected route
+        resp2 = self.client.get('/dashboard', follow_redirects=False)
+        self.assertEqual(resp2.status_code, 401)
+
 
 if __name__ == '__main__':
     unittest.main()
