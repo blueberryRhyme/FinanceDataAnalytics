@@ -25,6 +25,7 @@ The application follows a **Model-View-Controller (MVC)** architecture:
 - **Controllers (`routes.py`)**: Define business logic and route handling
 - **Helpers**: Encapsulated utility functions to simplify route logic and data formatting
 - **Selenium Scripts (`tests/selenium/`)**: Automate browser interactions for end-to-end tests
+- **Unit tests (`tests/unit/`)**: Unit tests to ensure key functions of website operate correctly
 
 The app is modular, enabling scalability and straightforward maintenance.
 
@@ -58,13 +59,20 @@ Option 1: Python Script
 bash
 
 python run.py
-Option 2: Flask CLI
-Set the environment variable and run Flask:
+### Option 2: Running Flask with Flask CLI
 
-bash
-
-export FLASK_APP=run.py      # On Windows: set FLASK_APP=run.py
+**Windows (PowerShell):**
+```powershell
+$env:FLASK_APP = "run.py"
+$env:SQLALCHEMY_DATABASE_URI = "sqlite:///app.db"
 flask run
+
+**Linux/macOS (bash):**
+```bash
+export FLASK_APP=run.py
+export SQLALCHEMY_DATABASE_URI="sqlite:///app.db"
+flask run
+
 Once the server is running, navigate to:
 
 cpp
@@ -84,6 +92,7 @@ tests/
 │   └── test_auth.py
 │   └── test_routes.py
 ├── selenium/
+│   └── helpers.py
 │   └── test_registration.py
 │   └── test_login_flow.py
 │   └── test_monthly_statements.py
