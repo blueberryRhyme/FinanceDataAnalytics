@@ -1108,50 +1108,6 @@ def delete_goal(goal_id):
     flash('Goal deleted successfully!', 'success')
     return redirect(url_for('main.user_goals'))
 
-# API endpoint to interact with goals (like, comment, cheer)
-@main.route('/api/goals/<int:goal_id>/interact', methods=['POST'])
-@login_required
-def api_goal_interact(goal_id):
-    goal = Goal.query.get_or_404(goal_id)
-    data = request.get_json()
-    
-    interaction_type = data.get('type')
-    content = data.get('content')
-    
-    if interaction_type not in [item.value for item in GoalInteractionType]:
-        return jsonify({'error': 'Invalid interaction type'}), 400
-    
-    # Check if the interaction already exists for this user (for likes/cheers)
-    if interaction_type in [GoalInteractionType.LIKE.value, GoalInteractionType.CHEER.value]:
-        existing = GoalInteraction.query.filter_by(
-            goal_id=goal_id,
-            user_id=current_user.id,
-            interaction_type=interaction_type
-        ).first()
-        
-        if existing:
-            # Toggle the interaction (remove it)
-            db.session.delete(existing)
-            db.session.commit()
-            return jsonify({'status': 'removed'})
-    
-    # Create the new interaction
-    interaction = GoalInteraction(
-        goal_id=goal_id,
-        user_id=current_user.id,
-        interaction_type=interaction_type,
-        content=content
-    )
-    
-    db.session.add(interaction)
-    db.session.commit()
-    
-    return jsonify({
-        'status': 'added',
-        'username': current_user.username,
-        'created_at': interaction.created_at.strftime('%Y-%m-%d %H:%M')
-    })
-
 #   ++++++++++++++++++++++ bill splitting +++++++++++++++++++++
 @main.route('/splitBill')
 @login_required

@@ -38,7 +38,7 @@
 <script>
 // Get CSRF token for all API requests
 const cfg = JSON.parse(document.getElementById('app-config').textContent || '{}');
-const csrfToken = cfg.csrf || {{ csrf_token()|tojson }};
+const csrfToken = cfg.csrf || '{{ csrf_token() }}';
 
 /* -----------------------------------------------------------
    Friends Management

@@ -124,38 +124,6 @@
     margin-left: 10px;
   }
   
-  .achievement-interactions {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px solid #f1f5f9;
-  }
-  
-  .achievement-action {
-    display: flex;
-    align-items: center;
-    color: var(--text-secondary);
-    font-size: 14px;
-    cursor: pointer;
-    padding: 5px 10px;
-    border-radius: 20px;
-    transition: all 0.2s ease;
-  }
-  
-  .achievement-action:hover {
-    background-color: #f1f5f9;
-    color: var(--primary);
-  }
-  
-  .achievement-action i {
-    margin-right: 5px;
-  }
-  
-  .achievement-action.liked {
-    color: var(--accent);
-  }
-  
   .no-achievements {
     text-align: center;
     padding: 40px 0;
@@ -221,84 +189,7 @@
     background-color: #f8fafc;
   }
   
-  .comment-section {
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed #eaeaea;
-    display: none;
-  }
-  
-  .comment-form {
-    display: flex;
-    margin-bottom: 10px;
-  }
-  
-  .comment-input {
-    flex-grow: 1;
-    padding: 8px 15px;
-    border: 1px solid #e2e8f0;
-    border-radius: 20px;
-    font-size: 14px;
-    outline: none;
-  }
-  
-  .comment-input:focus {
-    border-color: var(--primary);
-  }
-  
-  .comment-submit {
-    margin-left: 10px;
-    padding: 8px 15px;
-    background-color: var(--primary);
-    color: var(--white);
-    border: none;
-    border-radius: 20px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-  }
-  
-  .comment-submit:hover {
-    background-color: var(--primary-dark);
-  }
-  
-  .comments-list {
-    font-size: 14px;
-  }
-  
-  .comment {
-    padding: 8px 0;
-    display: flex;
-  }
-  
-  .comment-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background-color: var(--primary-light);
-    color: var(--primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    font-size: 14px;
-    margin-right: 10px;
-    flex-shrink: 0;
-  }
-  
-  .comment-content {
-    flex-grow: 1;
-    background-color: #f8fafc;
-    padding: 10px;
-    border-radius: 12px;
-  }
-  
-  .comment-author {
-    font-weight: 600;
-    color: var(--text-primary);
-    margin-bottom: 3px;
-  }
+  /* Comment section and achievement interactions styles removed as requested */
   
   .comment-text {
     color: var(--text-secondary);
@@ -364,27 +255,7 @@
                   <div class="achievement-points">{{ achievement.achievement.points }} pts</div>
                 </div>
                 
-                <div class="achievement-interactions" data-achievement-id="{{ achievement.id }}">
-                  <div class="achievement-action like-action" data-action="like" data-id="{{ achievement.id }}">
-                    <i class="fa-regular fa-thumbs-up"></i> Like
-                  </div>
-                  <div class="achievement-action comment-action" data-action="comment" data-id="{{ achievement.id }}">
-                    <i class="fa-regular fa-comment"></i> Comment
-                  </div>
-                  <div class="achievement-action" data-action="congrats" data-id="{{ achievement.id }}">
-                    <i class="fa-regular fa-paper-plane"></i> Congrats!
-                  </div>
-                </div>
-                
-                <div class="comment-section" id="comments-{{ achievement.id }}">
-                  <div class="comment-form">
-                    <input type="text" class="comment-input" placeholder="Write a comment...">
-                    <button class="comment-submit" data-action="send-comment" data-id="{{ achievement.id }}">Send</button>
-                  </div>
-                  <div class="comments-list">
-                    <!-- Comments will be loaded here -->
-                  </div>
-                </div>
+                <!-- Achievement interactions removed as requested -->
               {% endfor %}
             {% else %}
               <p class="no-achievements">No public achievements to show</p>
@@ -403,82 +274,9 @@
 
 {% block scripts %}
 <script>
-  // Event delegation for achievement interactions
+  // Achievement interaction functionality removed as requested
   document.addEventListener('DOMContentLoaded', function() {
-    // Handle all achievement interactions through event delegation
-    document.addEventListener('click', function(event) {
-      // Find closest action element
-      const actionEl = event.target.closest('[data-action]');
-      if (!actionEl) return;
-      
-      const action = actionEl.getAttribute('data-action');
-      const achievementId = actionEl.getAttribute('data-id');
-      
-      if (action === 'like') {
-        // Toggle liked state visually first (optimistic UI)
-        if (actionEl.classList.contains('liked')) {
-          actionEl.classList.remove('liked');
-          actionEl.innerHTML = '<i class="fa-regular fa-thumbs-up"></i> Like';
-        } else {
-          actionEl.classList.add('liked');
-          actionEl.innerHTML = '<i class="fa-solid fa-thumbs-up"></i> Liked';
-        }
-        
-        // In Phase 3, we'll implement the actual backend interaction
-        console.log('Like achievement:', achievementId);
-      }
-      
-      else if (action === 'comment') {
-        const commentSection = document.getElementById(`comments-${achievementId}`);
-        
-        if (commentSection.style.display === 'block') {
-          commentSection.style.display = 'none';
-        } else {
-          commentSection.style.display = 'block';
-          
-          // In Phase 3, we'll fetch and load comments
-          console.log('Load comments for:', achievementId);
-        }
-      }
-      
-      else if (action === 'congrats') {
-        // Simple animation for now
-        actionEl.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Sent!';
-        setTimeout(() => {
-          actionEl.innerHTML = '<i class="fa-regular fa-paper-plane"></i> Congrats!';
-        }, 2000);
-        
-        console.log('Send congrats for:', achievementId);
-      }
-      
-      else if (action === 'send-comment') {
-        const commentSection = document.getElementById(`comments-${achievementId}`);
-        const commentInput = commentSection.querySelector('.comment-input');
-        const commentText = commentInput.value.trim();
-        
-        if (commentText) {
-          const commentsList = commentSection.querySelector('.comments-list');
-          
-          // Add new comment (frontend only in Phase 2)
-          const comment = document.createElement('div');
-          comment.className = 'comment';
-          comment.innerHTML = `
-            <div class="comment-avatar">{{ current_user.username[0]|upper }}</div>
-            <div class="comment-content">
-              <div class="comment-author">{{ current_user.username }}</div>
-              <div class="comment-text">${commentText}</div>
-              <div class="comment-time">Just now</div>
-            </div>
-          `;
-          
-          commentsList.appendChild(comment);
-          commentInput.value = '';
-          
-          // In Phase 3, we'll send this to backend
-          console.log('Add comment to achievement:', achievementId, commentText);
-        }
-      }
-    });
+    // Keep filterAchievements functionality
   });
   
   // Filter handling
