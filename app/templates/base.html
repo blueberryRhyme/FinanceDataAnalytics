@@ -46,11 +46,10 @@
       <nav class="main-nav">
         <a href="{{ url_for('main.dashboard') }}" class="nav-link">Dashboard</a>
         <a href="{{ url_for('main.transactionForm') }}" class="nav-link">Log Transaction</a>
-        <a href="{{ url_for('main.history') }}" class="nav-link">History</a>
         <a href="{{ url_for('main.profile') }}" class="nav-link">Profile</a>
         <a href="{{ url_for('main.friends') }}" class="nav-link">Friends</a>
+        <a href="{{ url_for('main.achievements') }}"  class="nav-link">Achievements</a>
         <a href="{{ url_for('main.forecast') }}"  class="nav-link">Forecast</a>
-        <a href="{{ url_for('main.splitBill') }}"  class="nav-link">Split Bill</a>
         <a href="{{ url_for('main.bills_overview') }}"  class="nav-link">Bills</a>
 
 
@@ -68,6 +67,11 @@
   </footer>
 
   {% block scripts %}{% endblock %}
+  
+  <!-- Achievement notification system -->
+  <div id="toast-container"></div>
+  <div id="achievement-modal-container"></div>
+  <script src="{{ url_for('static', filename='js/achievements.js') }}"></script>
 
 </body>
 </html>

@@ -388,11 +388,15 @@
   <div class="chart-container">
     <div class="chart-card">
       <div class="chart-title">Monthly Spending Trends</div>
-      <canvas id="spendingTrendsChart"></canvas>
+      <div id="spendingTrendsContainer">
+        <canvas id="spendingTrendsChart"></canvas>
+      </div>
     </div>
     <div class="chart-card">
       <div class="chart-title">Expense Distribution</div>
-      <canvas id="expenseDistributionChart"></canvas>
+      <div id="expenseDistributionContainer">
+        <canvas id="expenseDistributionChart"></canvas>
+      </div>
     </div>
   </div>
 </div>
@@ -401,73 +405,109 @@
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  
-
   const cfg = JSON.parse(document.getElementById('app-config').textContent);
   const viewUserId = cfg.viewUserId;  // number or null
 
-
   // categories = grouped-by-category for Recent
-  const categories     = [];
-
+  const categories = [];
 
   const categoriesByType = {
     expense: [],
-    income:  [],
-    transfer:[]
+    income: [],
+    transfer: []
   };
-
 
   // expenseEntries = flat list of expense-only entries for charts
   const expenseEntries = [];
 
   async function loadTransactions() {
     try {
-
       const urlTxn = viewUserId
         ? `/api/transaction?view_user_id=${viewUserId}`
         : '/api/transaction';
-      const res  = await fetch(urlTxn);
+      const res = await fetch(urlTxn);
       if (!res.ok) throw new Error(res.statusText);
       const data = await res.json();  // [ {category, history:[…]}, … ]
 
       data.forEach(cat => {
-      ['expense','income','transfer'].forEach(type => {
-        const hist = cat.history.filter(e => e.type === type);
-        if (!hist.length) return;
+        ['expense', 'income', 'transfer'].forEach(type => {
+          const hist = cat.history.filter(e => e.type === type);
+          if (!hist.length) return;
 
-        // total up
-        const total = hist.reduce((sum, e) => sum + e.amount, 0);
-        const id    = `${type}-${cat.category}`.replace(/\s+/g,'-').toLowerCase();
+          // total up
+          const total = hist.reduce((sum, e) => sum + e.amount, 0);
+          const id = `${type}-${cat.category}`.replace(/\s+/g, '-').toLowerCase();
 
-        categoriesByType[type].push({
-          id, title: cat.category, amount: total, history: hist
+          categoriesByType[type].push({
+            id, title: cat.category, amount: total, history: hist
+          });
+
+          // only collect expenses for the global charts
+          if (type === 'expense') {
+            hist.forEach(e => expenseEntries.push({
+              date: e.date, amount: e.amount, category: cat.category
+            }));
+          }
         });
-
-        // only collect expenses for the global charts
-        if (type === 'expense') {
-          hist.forEach(e => expenseEntries.push({
-            date: e.date, amount: e.amount, category: cat.category
-          }));
-        }
       });
-    });
 
-    // render each section
-    renderRecent('expense');
-    renderRecent('income');
-    renderRecent('transfer');
-    renderTrendChart();
-    renderDistributionChart();
+      // render each section
+      renderRecent('expense');
+      renderRecent('income');
+      renderRecent('transfer');
+      renderTrendChart();
+      renderDistributionChart();
 
     } catch (err) {
       console.error('Failed to load transactions:', err);
     }
   }
-  
- function renderRecent(type) {
+
+  function renderRecent(type) {
     const container = document.getElementById(`${type}-container`);
     container.innerHTML = '';
+    
+    // Check if there are no transactions of this type
+    if (categoriesByType[type].length === 0) {
+      // Create empty state card
+      const emptyCard = document.createElement('div');
+      emptyCard.className = 'expense-card empty-state';
+      
+      // Customize message based on transaction type and whether viewing own or shared dashboard
+      const typeLabel = type.charAt(0).toUpperCase() + type.slice(1);
+      const isViewingShared = !!viewUserId;
+      
+      if (isViewingShared) {
+        // When viewing someone else's dashboard
+        const username = document.querySelector('.dashboard-title').textContent.split('Dashboard')[0].trim();
+        emptyCard.innerHTML = `
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm4.5-4.5a.5.5 0 0 1 0 .7l-4 4a.5.5 0 0 1-.7 0l-4-4a.5.5 0 0 1 .7-.7L8 10.29l3.5-3.5a.5.5 0 0 1 .7 0z"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No ${typeLabel}s</div>
+          <div class="empty-state-message">${username} hasn't logged any ${type}s yet</div>
+        `;
+      } else {
+        // When viewing your own dashboard
+        emptyCard.innerHTML = `
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm4.5-4.5a.5.5 0 0 1 0 .7l-4 4a.5.5 0 0 1-.7 0l-4-4a.5.5 0 0 1 .7-.7L8 10.29l3.5-3.5a.5.5 0 0 1 .7 0z"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No ${typeLabel}s Yet</div>
+          <div class="empty-state-message">Get started by logging your first ${type}</div>
+          <a href="/transactionForm" class="button">Add ${typeLabel}</a>
+        `;
+      }
+      
+      container.appendChild(emptyCard);
+      return;
+    }
+    
+    // If there are transactions, render them as before
     categoriesByType[type].forEach(cat => {
       // card
       const card = document.createElement('div');
@@ -502,7 +542,7 @@
               labels: cat.history.map(e => e.date),
               datasets: [{
                 label: cat.title,
-                data:  cat.history.map(e => e.amount),
+                data: cat.history.map(e => e.amount),
                 tension: 0.4,
                 fill: true,
                 backgroundColor: 'rgba(59,130,246,0.2)',
@@ -537,6 +577,50 @@
   }
 
   function renderTrendChart() {
+    const chartContainer = document.getElementById('spendingTrendsContainer');
+    const chartCanvas = document.getElementById('spendingTrendsChart');
+    
+    // If there are no expense entries, show empty state
+    if (!expenseEntries || expenseEntries.length === 0) {
+      // Clear the container
+      chartContainer.innerHTML = '';
+      
+      // Create empty state
+      const emptyState = document.createElement('div');
+      emptyState.className = 'empty-state chart-empty-state';
+      
+      // Different message based on whether viewing own or shared dashboard
+      const isViewingShared = !!viewUserId;
+      
+      if (isViewingShared) {
+        const username = document.querySelector('.dashboard-title').textContent.split('Dashboard')[0].trim();
+        emptyState.innerHTML = `
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm4.5-4.5a.5.5 0 0 1 0 .7l-4 4a.5.5 0 0 1-.7 0l-4-4a.5.5 0 0 1 .7-.7L8 10.29l3.5-3.5a.5.5 0 0 1 .7 0z"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No Spending Data</div>
+          <div class="empty-state-message">${username} hasn't logged any expenses yet</div>
+        `;
+      } else {
+        emptyState.innerHTML = `
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm4.5-4.5a.5.5 0 0 1 0 .7l-4 4a.5.5 0 0 1-.7 0l-4-4a.5.5 0 0 1 .7-.7L8 10.29l3.5-3.5a.5.5 0 0 1 .7 0z"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No Spending Trends</div>
+          <div class="empty-state-message">Start logging expenses to see your spending trends</div>
+          <a href="/transactionForm" class="button">Log Expense</a>
+        `;
+      }
+      
+      chartContainer.appendChild(emptyState);
+      return;
+    }
+    
+    // If there are expenses, render the chart
     const monthly = expenseEntries.reduce((acc, {date,amount}) => {
       const m = date.slice(0,7);
       acc[m] = (acc[m]||0) + amount;
@@ -546,7 +630,7 @@
     const data   = labels.map(m => monthly[m]);
 
     new Chart(
-      document.getElementById('spendingTrendsChart'),
+      chartCanvas,
       {
         type:'line',
         data:{ labels, datasets:[{ label:'Expenses', data, fill:true, tension:0.4 }]},
@@ -560,6 +644,50 @@
   }
 
   function renderDistributionChart() {
+    const chartContainer = document.getElementById('expenseDistributionContainer');
+    const chartCanvas = document.getElementById('expenseDistributionChart');
+    
+    // If there are no expense entries, show empty state
+    if (!expenseEntries || expenseEntries.length === 0) {
+      // Clear the container
+      chartContainer.innerHTML = '';
+      
+      // Create empty state
+      const emptyState = document.createElement('div');
+      emptyState.className = 'empty-state chart-empty-state';
+      
+      // Different message based on whether viewing own or shared dashboard
+      const isViewingShared = !!viewUserId;
+      
+      if (isViewingShared) {
+        const username = document.querySelector('.dashboard-title').textContent.split('Dashboard')[0].trim();
+        emptyState.innerHTML = `
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm4.5-4.5a.5.5 0 0 1 0 .7l-4 4a.5.5 0 0 1-.7 0l-4-4a.5.5 0 0 1 .7-.7L8 10.29l3.5-3.5a.5.5 0 0 1 .7 0z"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No Expense Breakdown</div>
+          <div class="empty-state-message">${username} hasn't logged any expenses yet</div>
+        `;
+      } else {
+        emptyState.innerHTML = `
+          <div class="empty-state-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" fill="currentColor" viewBox="0 0 16 16">
+              <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zm4.5-4.5a.5.5 0 0 1 0 .7l-4 4a.5.5 0 0 1-.7 0l-4-4a.5.5 0 0 1 .7-.7L8 10.29l3.5-3.5a.5.5 0 0 1 .7 0z"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No Expense Distribution</div>
+          <div class="empty-state-message">Start logging expenses to see your spending breakdown</div>
+          <a href="/transactionForm" class="button">Log Expense</a>
+        `;
+      }
+      
+      chartContainer.appendChild(emptyState);
+      return;
+    }
+    
+    // If there are expenses, render the chart
     const byCat = expenseEntries.reduce((acc, {category,amount})=> {
       acc[category] = (acc[category]||0) + amount;
       return acc;
