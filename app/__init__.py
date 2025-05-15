@@ -31,8 +31,9 @@ def create_app(config_object=None):
     @login_manager.user_loader
     def load_user(user_id):
         #   Flask-Login passes the user ID as a string ?
-        return User.query.get(int(user_id))
+        from app.models import db, User  # ensure db is imported
 
+        return db.session.get(User, int(user_id))
 
     # import here to avoid circular import
     from .routes import main

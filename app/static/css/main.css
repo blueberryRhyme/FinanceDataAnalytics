@@ -785,7 +785,7 @@ body.nav-open {
 }
 
 .site-footer {
-  position: relative;
+  position: static !important;
   z-index: 1;         /* below nav, above content */
   background: var(--white);
   padding: 16px;
