@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <script id="app-config" type="application/json">
     {{
       {
@@ -40,6 +42,25 @@
 
 </head>
 <body>
+
+  <!-- 1️⃣ Mobile Nav Toggle & Overlay Nav -->
+  <div class="mobile-nav-toggle" onclick="document.body.classList.toggle('nav-open')">
+    <span></span><span></span><span></span>
+  </div>
+  <nav class="mobile-nav">
+    <ul>
+      <li><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
+      <li><a href="{{ url_for('main.transactionForm') }}">Log Transaction</a></li>
+      <li><a href="{{ url_for('main.history') }}">History</a></li>
+      <li><a href="{{ url_for('main.profile') }}">Profile</a></li>
+      <li><a href="{{ url_for('main.friends') }}">Friends</a></li>
+      <li><a href="{{ url_for('main.forecast') }}">Forecast</a></li>
+      <li><a href="{{ url_for('main.splitBill') }}">Split Bill</a></li>
+      <li><a href="{{ url_for('main.bills_overview') }}">Bills</a></li>
+    </ul>
+  </nav>
+
+
   <header class="site-header">
 
     <div class="navigation-container">
