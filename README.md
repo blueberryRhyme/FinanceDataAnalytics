@@ -38,54 +38,69 @@ The app is modular, enabling scalability and straightforward maintenance.
 Ensure the following are installed:
 - Python 3.10 or higher
 - pip
-- Google Chrome browser
-- ChromeDriver (automatically managed via `webdriver-manager`)
 
 ### 📥 Installation
 
-Clone the repository and navigate into the project folder:
-```bash
+**Clone the repository and navigate into the project folder:**
+
+```
 git clone https://github.com/blueberryRhyme/FinanceDataAnalytics.git
 cd FinanceDataAnalytics
+```
 
+**Install all required libraries:**
 
-Install all required libraries:
+```
 pip install -r requirements.txt
+```
 
-🚀 Running the Application
-You can launch the app in one of two ways:
+**🚀 Running the Application**
+**You can launch the app in one of two ways:**
 
-Option 1: Python Script
-bash
 
+### Option 1: Python Script
+
+```
 python run.py
+```
+
 ### Option 2: Running Flask with Flask CLI
 
 **Windows (PowerShell):**
-```powershell
+
+```
 $env:FLASK_APP = "run.py"
 $env:SQLALCHEMY_DATABASE_URI = "sqlite:///app.db"
 flask run
+```
 
 **Linux/macOS (bash):**
-```bash
+
+```
 export FLASK_APP=run.py
 export SQLALCHEMY_DATABASE_URI="sqlite:///app.db"
 flask run
+```
 
-Once the server is running, navigate to:
+**Once the server is running, navigate to:**
 
-cpp
-
+```
 http://127.0.0.1:5000
+```
 
-✅ Running Tests
+### ✅ Running Tests
+
 The platform includes 12 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
 
-Run all tests using:
-pytest
+**Run all tests using:**
 
-📁 Test Structure
+```
+pytest
+```
+
+**📁 Test Structure**
+
+```
 tests/
 ├── unit/
 │   └── test_models.py
@@ -98,17 +113,20 @@ tests/
 │   └── test_monthly_statements.py
 │   └── test_duplicate_accounts.py
 │   └── test_split_bill_only.py
+```
 
-🧪 Example Selenium Use
+**🧪 Example Selenium Use**
+
 Example test case: test_duplicate_accounts.py verifies that duplicate user registration is blocked and handled gracefully.
 
-python
-
+```
 # Inside tests/selenium/test_duplicate_accounts.py
 def test_duplicate_registration():
     # Attempts to register the same user twice and checks for error message
+```
 
-📚 Notes for Assessors
+### 📚 Notes for Assessors
+
 This project follows best practices for structure, testing, and modularization.
 
 Git commits are structured by task/module, demonstrating collaborative workflow and Agile practices.
@@ -117,7 +135,12 @@ Detailed inline comments and docstrings are provided throughout the codebase.
 
 README includes full setup instructions for replication and assessment.
 
-👨‍💻 Authors
+**👨‍💻 Authors**
+
+```
 Developed by blueberryRhyme Jia Qi Lam (23751337), gilbertting03 Gilbert Xiang Yi Ting (23957541), armaanjosann Armaan Josan (24001588), fishymate Mark Tanel (23660033)
+
 CITS3403 — The University of Western Australia
+
 Semester 1, 2025
+```
