@@ -44,6 +44,18 @@ class ModelTestCase(unittest.TestCase):
         self.assertEqual(alice.settings.monthly_budget, Decimal("1000.00"))
         self.assertEqual(alice.settings.currency, "USD")
 
+    def test_user_settings_defaults(self):
+        u = User(username="oliver", email="oliver@example.com", password="hash")
+        settings = UserSettings()
+        u.settings = settings
+        db.session.add(u)
+        db.session.commit()
+
+        # check default values
+        self.assertEqual(u.settings.monthly_budget, Decimal("0.00"))
+        self.assertEqual(u.settings.currency, "AUD")
+        self.assertEqual(u.settings.timezone, "Australia/Perth")
+
     def test_transactions_and_remaining_property(self):
         # create one user and two transactions
         u = User(username="bob", email="bob@example.com", password="hash")
@@ -69,6 +81,34 @@ class ModelTestCase(unittest.TestCase):
         # remaining should be 150
         tx_refetched = db.session.get(Transaction, tx.id)
         self.assertAlmostEqual(tx_refetched.remaining, 150.00)
+
+    def test_transaction_remaining_with_multiple_bills(self):
+        # create a user and two transactions
+        u = User(username="hannah", email="hannah@gmail.com", password="hash")
+        db.session.add(u)
+        db.session.commit()
+
+        tx = Transaction(
+            user_id=u.id,
+            date=date.today(),
+            amount=Decimal("300.00"),
+            category="entertainment",
+            type=TransactionType.expense,
+        )
+        db.session.add(tx)
+        db.session.commit()
+
+        # apply the transaction to two bills
+        bill1 = Bill(created_by=u.id, description="Concert", total=Decimal("200.00"))
+        bill2 = Bill(created_by=u.id, description="Movies", total=Decimal("100.00"))
+        bt1 = BillTransaction(bill=bill1, transaction=tx, amount_applied=Decimal("150.00"))
+        bt2 = BillTransaction(bill=bill2, transaction=tx, amount_applied=Decimal("50.00"))
+        db.session.add_all([bill1, bill2, bt1, bt2])
+        db.session.commit()
+
+        # remaining should be 100
+        tx_refetched = db.session.get(Transaction, tx.id)
+        self.assertAlmostEqual(tx_refetched.remaining, 100.00)
 
     def test_bill_and_members_settled_logic(self):
         # user and two members
@@ -126,6 +166,20 @@ class ModelTestCase(unittest.TestCase):
         tf_refetched = TransactionFriend.query.first()
         self.assertEqual(tf_refetched.friend_id, u2.id)
         self.assertAlmostEqual(tf_refetched.confidence, 0.85)
+
+    def test_friendship_bidirectional(self):
+        u1 = User(username="kyle", email="kyle@example.com", password="h")
+        u2 = User(username="lisa", email="lisa@example.com", password="h")
+        db.session.add_all([u1, u2])
+        db.session.commit()
+
+        # add friendship
+        u1.friends.append(u2)
+        db.session.commit()
+
+        # check bidirectional relationship
+        self.assertIn(u2, u1.friends)
+        self.assertIn(u1, u2.friended_by)
 
 
 if __name__ == "__main__":
