@@ -118,9 +118,7 @@ const csrfToken = cfg.csrf || {{ csrf_token()|tojson }};
       console.error('Error loading friends:', error);
     }
   }
-  
-
-
+  // Function to remove a friend
   function removeFriend(friendId) {
     fetch('/api/remove_friend', {
       method: 'POST',
@@ -229,27 +227,8 @@ const csrfToken = cfg.csrf || {{ csrf_token()|tojson }};
     }
   });
   
-  function removeFriend(friendId) {
-    fetch('/api/remove_friend', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrfToken
-      },
-      body: JSON.stringify({
-        friend_id: friendId
-      })
-    })
-    .then(response => {
-      if (response.ok) {
-        loadFriends(); // Refresh the friend list
-      } else {
-        alert('Failed to remove friend.');
-      }
-    })
-    .catch(error => console.error('Error removing friend:', error));
-  }
+  // Load friends on page load
+  loadFriends();
   
   // Initialize the page
   loadFriends();

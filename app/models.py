@@ -259,8 +259,57 @@ class AchievementInteraction(db.Model):
     user_achievement = db.relationship('UserAchievement', back_populates='interactions')
     
     def __repr__(self):
-        return f'<AchievementInteraction {self.user.username} - {self.interaction_type.value}>'
+        return f'<AchievementInteraction {self.interaction_type.value} by User {self.user_id}>' 
 
+# Financial Goals Models
+class Goal(db.Model):
+    """Model for user financial goals that can be shared with the community"""
+    __tablename__ = 'goals'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    target_amount = db.Column(db.Numeric(10, 2), nullable=False)
+    current_amount = db.Column(db.Numeric(10, 2), default=0)
+    target_date = db.Column(db.Date, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    is_public = db.Column(db.Boolean, default=True)
+    is_completed = db.Column(db.Boolean, default=False)
+    
+    def progress_percentage(self):
+        """Calculate and return the goal completion percentage"""
+        if self.target_amount == 0:
+            return 100
+        return min(100, float(self.current_amount / self.target_amount * 100))
+    
+    def __repr__(self):
+        return f'<Goal {self.title} - ${self.target_amount}>' 
+
+class GoalInteractionType(enum.Enum):
+    """Types of interactions for community goals"""
+    LIKE = 'like'
+    COMMENT = 'comment'
+    CHEER = 'cheer'
+
+class GoalInteraction(db.Model):
+    """Model to store interactions (likes, comments, cheers) on community goals"""
+    __tablename__ = 'goal_interactions'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    goal_id = db.Column(db.Integer, db.ForeignKey('goals.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    interaction_type = db.Column(db.Enum(GoalInteractionType), nullable=False)
+    content = db.Column(db.Text, nullable=True)  # For comments
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationship to the user who made the interaction
+    user = db.relationship('User', backref=db.backref('goal_interactions', lazy='dynamic'))
+    goal = db.relationship('Goal', backref=db.backref('interactions', lazy='dynamic', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<GoalInteraction {self.interaction_type.value} by User {self.user_id}>' 
 
 # Update User model to include achievements
 User.achievements = db.relationship(
@@ -271,3 +320,10 @@ User.achievements = db.relationship(
     cascade='all, delete-orphan'
 )
 
+User.goals = db.relationship(
+    'Goal',
+    foreign_keys=[Goal.user_id],
+    primaryjoin=(User.id == Goal.user_id),
+    lazy='dynamic',
+    cascade='all, delete-orphan'
+)

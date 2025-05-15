@@ -9,7 +9,8 @@ from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 from app.models import User, UserSettings, Transaction, TransactionType, \
-    Bill, BillMember, BillTransaction, Achievement, UserAchievement, AchievementType, AchievementCategory
+    Bill, BillMember, BillTransaction, Achievement, UserAchievement, AchievementType, AchievementCategory, \
+    TransactionFriend, Goal, GoalInteraction, GoalInteractionType
 from app.forms import TransactionForm, RegistrationForm, LoginForm, LogoutForm
 from datetime import datetime,date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -100,7 +101,24 @@ def login():
 @login_required
 def profile():
     logout_form = LogoutForm()
-    return render_template('profile.html',logout_form=logout_form)
+    # Get the user's goals for display in profile
+    try:
+        # Print debug info before querying
+        print(f"DEBUG: Fetching goals for user {current_user.username} (ID: {current_user.id})")
+        
+        # Query the goals
+        user_goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.created_at.desc()).all()
+        
+        # Print how many goals were found
+        print(f"DEBUG: Found {len(user_goals)} goals for user {current_user.username}")
+        for goal in user_goals:
+            print(f"DEBUG: Goal found - ID: {goal.id}, Title: {goal.title}")
+            
+        return render_template('profile.html', logout_form=logout_form, user_goals=user_goals)
+    except Exception as e:
+        # If there's an error, log it and return an empty list of goals
+        print(f"ERROR in profile goals: {str(e)}")
+        return render_template('profile.html', logout_form=logout_form, user_goals=[])
 
 @main.route('/achievements')
 @login_required
@@ -942,6 +960,197 @@ def friends_achievements():
     return render_template('friends_achievements.html', 
                           friends_achievements=friends_achievements,
                           current_user=current_user)
+
+#   ++++++++++++++++++++++ Community Features +++++++++++++++++++++
+@main.route('/community')
+@login_required
+def community():
+    try:
+        # Print debug info
+        print(f"DEBUG COMMUNITY: User {current_user.username} (ID: {current_user.id}) accessing community page")
+        
+        # Get public goals from friends and from the current user
+        friend_ids = [friend.id for friend in current_user.friends] + [friend.id for friend in current_user.friended_by]
+        friend_ids = list(set(friend_ids))  # Remove duplicates
+        
+        print(f"DEBUG COMMUNITY: Found {len(friend_ids)} friends")
+        
+        # Add current user to the list
+        user_ids = friend_ids + [current_user.id]
+        
+        # Get only public goals from the current user
+        user_goals = Goal.query.filter_by(user_id=current_user.id, is_public=True).all()
+        print(f"DEBUG COMMUNITY: User has {len(user_goals)} public personal goals")
+        
+        # Get public goals from friends
+        friend_goals = Goal.query.filter(
+            Goal.user_id.in_(friend_ids),
+            Goal.is_public == True
+        ).all()
+        print(f"DEBUG COMMUNITY: Found {len(friend_goals)} public friend goals")
+        
+        # Combine the goals
+        all_goals = user_goals + friend_goals
+        
+        # Sort by creation date (newest first)
+        all_goals.sort(key=lambda g: g.created_at, reverse=True)
+        
+        # Get the users for displaying names
+        users = {user.id: user for user in User.query.filter(User.id.in_(user_ids)).all()}
+        
+        return render_template(
+            'community.html',
+            goals=all_goals,
+            users=users,
+            current_user=current_user
+        )
+    except Exception as e:
+        # If there's an error, log it and return an empty list of goals
+        print(f"ERROR in community goals: {str(e)}")
+        return render_template(
+            'community.html',
+            goals=[],
+            users={current_user.id: current_user},
+            current_user=current_user
+        )
+
+@main.route('/goals')
+@login_required
+def user_goals():
+    # Get all goals for the current user
+    goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.created_at.desc()).all()
+    
+    return render_template(
+        'goals.html',
+        goals=goals
+    )
+
+@main.route('/goals/new', methods=['GET', 'POST'])
+@login_required
+def new_goal():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        target_amount = request.form.get('target_amount')
+        target_date_str = request.form.get('target_date')
+        is_public = request.form.get('is_public') == 'on'
+        
+        # Basic validation
+        if not title or not target_amount:
+            flash('Title and target amount are required', 'error')
+            return redirect(url_for('main.new_goal'))
+        
+        try:
+            target_amount = float(target_amount)
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date() if target_date_str else None
+        except ValueError:
+            flash('Invalid amount or date format', 'error')
+            return redirect(url_for('main.new_goal'))
+        
+        goal = Goal(
+            user_id=current_user.id,
+            title=title,
+            description=description,
+            target_amount=target_amount,
+            current_amount=0,
+            target_date=target_date,
+            is_public=is_public
+        )
+        
+        db.session.add(goal)
+        db.session.commit()
+        
+        flash('Goal created successfully!', 'success')
+        return redirect(url_for('main.community'))
+    
+    return render_template('goal_form.html', goal=None)
+
+@main.route('/goals/<int:goal_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_goal(goal_id):
+    goal = Goal.query.get_or_404(goal_id)
+    
+    # Security check - only the owner can edit
+    if goal.user_id != current_user.id:
+        abort(403)
+    
+    if request.method == 'POST':
+        goal.title = request.form.get('title')
+        goal.description = request.form.get('description')
+        goal.target_amount = float(request.form.get('target_amount'))
+        goal.current_amount = float(request.form.get('current_amount', 0))
+        goal.is_public = request.form.get('is_public') == 'on'
+        
+        target_date_str = request.form.get('target_date')
+        if target_date_str:
+            goal.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        
+        goal.is_completed = goal.current_amount >= goal.target_amount
+        
+        db.session.commit()
+        flash('Goal updated successfully!', 'success')
+        return redirect(url_for('main.user_goals'))
+    
+    return render_template('goal_form.html', goal=goal)
+
+@main.route('/goals/<int:goal_id>/delete', methods=['POST'])
+@login_required
+def delete_goal(goal_id):
+    goal = Goal.query.get_or_404(goal_id)
+    
+    # Security check - only the owner can delete
+    if goal.user_id != current_user.id:
+        abort(403)
+    
+    db.session.delete(goal)
+    db.session.commit()
+    
+    flash('Goal deleted successfully!', 'success')
+    return redirect(url_for('main.user_goals'))
+
+# API endpoint to interact with goals (like, comment, cheer)
+@main.route('/api/goals/<int:goal_id>/interact', methods=['POST'])
+@login_required
+def api_goal_interact(goal_id):
+    goal = Goal.query.get_or_404(goal_id)
+    data = request.get_json()
+    
+    interaction_type = data.get('type')
+    content = data.get('content')
+    
+    if interaction_type not in [item.value for item in GoalInteractionType]:
+        return jsonify({'error': 'Invalid interaction type'}), 400
+    
+    # Check if the interaction already exists for this user (for likes/cheers)
+    if interaction_type in [GoalInteractionType.LIKE.value, GoalInteractionType.CHEER.value]:
+        existing = GoalInteraction.query.filter_by(
+            goal_id=goal_id,
+            user_id=current_user.id,
+            interaction_type=interaction_type
+        ).first()
+        
+        if existing:
+            # Toggle the interaction (remove it)
+            db.session.delete(existing)
+            db.session.commit()
+            return jsonify({'status': 'removed'})
+    
+    # Create the new interaction
+    interaction = GoalInteraction(
+        goal_id=goal_id,
+        user_id=current_user.id,
+        interaction_type=interaction_type,
+        content=content
+    )
+    
+    db.session.add(interaction)
+    db.session.commit()
+    
+    return jsonify({
+        'status': 'added',
+        'username': current_user.username,
+        'created_at': interaction.created_at.strftime('%Y-%m-%d %H:%M')
+    })
 
 #   ++++++++++++++++++++++ bill splitting +++++++++++++++++++++
 @main.route('/splitBill')
