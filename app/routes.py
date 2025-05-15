@@ -755,6 +755,11 @@ def api_forecast_simulate():
         elif delta < 0:
             advice += " Good move—projection stays comfortably under budget."
 
+    return jsonify({
+        "series": adjusted,
+        "advice": advice
+    })
+
 
 #   +++++++++++++++++++ END forecast ++++++++++++++++++++++++++++++
 
@@ -1017,13 +1022,9 @@ def community():
 @main.route('/goals')
 @login_required
 def user_goals():
-    # Get all goals for the current user
-    goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.created_at.desc()).all()
-    
-    return render_template(
-        'goals.html',
-        goals=goals
-    )
+    # Redirect to profile page which shows goals
+    return redirect(url_for('main.profile'))
+
 
 @main.route('/goals/new', methods=['GET', 'POST'])
 @login_required
@@ -1089,7 +1090,7 @@ def edit_goal(goal_id):
         
         db.session.commit()
         flash('Goal updated successfully!', 'success')
-        return redirect(url_for('main.user_goals'))
+        return redirect(url_for('main.profile'))
     
     return render_template('goal_form.html', goal=goal)
 
