@@ -31,12 +31,19 @@ def create_app(config_object=None):
     @login_manager.user_loader
     def load_user(user_id):
         #   Flask-Login passes the user ID as a string ?
-        from app.models import db, User  # ensure db is imported
+        return User.query.get(int(user_id))
 
-        return db.session.get(User, int(user_id))
 
     # import here to avoid circular import
     from .routes import main
     app.register_blueprint(main)
+    
+    # Register achievement hooks
+    with app.app_context():
+        from .achievement_hooks import register_achievement_hooks
+        register_achievement_hooks(app)
+        
+        # Create database tables if they don't exist
+        db.create_all()
         
     return app

@@ -8,7 +8,9 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
-from .models import User, UserSettings, Transaction, TransactionType, Bill, BillMember,BillTransaction, TransactionFriend
+from app.models import User, UserSettings, Transaction, TransactionType, \
+    Bill, BillMember, BillTransaction, Achievement, UserAchievement, AchievementType, AchievementCategory, \
+    TransactionFriend, Goal, GoalInteraction, GoalInteractionType
 from app.forms import TransactionForm, RegistrationForm, LoginForm, LogoutForm
 from datetime import datetime,date, timedelta
 from dateutil.relativedelta import relativedelta
@@ -64,7 +66,7 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         # hash the password
-        pw_hash = generate_password_hash(form.password.data)
+        pw_hash = generate_password_hash(form.password.data, method='scrypt')
         user = User(username=form.username.data,
                     email=form.email.data,
                     password=pw_hash)
@@ -99,7 +101,168 @@ def login():
 @login_required
 def profile():
     logout_form = LogoutForm()
-    return render_template('profile.html',logout_form=logout_form)
+    # Get the user's goals for display in profile
+    try:
+        # Print debug info before querying
+        print(f"DEBUG: Fetching goals for user {current_user.username} (ID: {current_user.id})")
+        
+        # Query the goals
+        user_goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.created_at.desc()).all()
+        
+        # Print how many goals were found
+        print(f"DEBUG: Found {len(user_goals)} goals for user {current_user.username}")
+        for goal in user_goals:
+            print(f"DEBUG: Goal found - ID: {goal.id}, Title: {goal.title}")
+            
+        return render_template('profile.html', logout_form=logout_form, user_goals=user_goals)
+    except Exception as e:
+        # If there's an error, log it and return an empty list of goals
+        print(f"ERROR in profile goals: {str(e)}")
+        return render_template('profile.html', logout_form=logout_form, user_goals=[])
+
+@main.route('/achievements')
+@login_required
+def achievements():
+    """User achievements page"""
+    # Check if we should refresh achievement progress
+    if request.args.get('refresh') == '1':
+        # Import the achievement engine and other needed functions
+        from app.achievement_engine import ACHIEVEMENT_CHECKS, update_achievement_progress
+        
+        # 1. Get all user's achievements
+        user_achievements = UserAchievement.query.filter_by(user_id=current_user.id).all()
+        
+        # 2. For each achievement, recalculate progress and update the database
+        for ua in user_achievements:
+            achievement = ua.achievement
+            check_func = ACHIEVEMENT_CHECKS.get(achievement.id)
+            
+            if check_func:
+                # Call the check function directly to calculate current progress
+                result = check_func(current_user, achievement, None)
+                
+                # Convert result to progress percentage
+                if isinstance(result, bool):
+                    new_progress = 100 if result else 0
+                elif isinstance(result, float):
+                    new_progress = int(result * 100)
+                else:
+                    new_progress = 0
+                
+                # Update the progress in the database
+                ua.progress = new_progress
+                db.session.add(ua)
+        
+        # Commit all changes
+        db.session.commit()
+        
+        # Redirect back to the page without the refresh parameter
+        return redirect(url_for('main.achievements'))
+        
+    # Get earned achievements (progress >= 100)
+    earned_achievements = UserAchievement.query.filter(
+        UserAchievement.user_id == current_user.id,
+        UserAchievement.progress >= 100
+    ).all()
+
+    # Get achievements that haven't been earned yet - filter to only include our 5 specific achievements
+    earned_achievement_ids = [ua.achievement_id for ua in earned_achievements]
+    # Filter out any earned achievements that aren't part of our 5 specific ones
+    earned_achievements = [ua for ua in earned_achievements if ua.achievement_id in [1, 2, 3, 4, 5]]
+    all_achievements = Achievement.query.filter(Achievement.id.in_([1, 2, 3, 4, 5])).all()
+
+    # Get existing user achievements that are in progress (only for our 5 specific achievements)
+    existing_user_achievements = UserAchievement.query.filter(
+        UserAchievement.user_id == current_user.id,
+        UserAchievement.progress < 100,
+        UserAchievement.achievement_id.in_([1, 2, 3, 4, 5])
+    ).all()
+    
+    # Get IDs of all achievements the user already has
+    existing_achievement_ids = [ua.achievement_id for ua in earned_achievements + existing_user_achievements]
+    
+    # Find achievements that need to be created for this user (only our 5 specific ones)
+    needed_achievements = Achievement.query.filter(
+        Achievement.id.in_([1, 2, 3, 4, 5]),
+        ~Achievement.id.in_(existing_achievement_ids)
+    ).all()
+    
+    # Create progress entries for missing achievements
+    for achievement in needed_achievements:
+        # Calculate initial progress based on achievement type
+        initial_progress = 0
+        
+        if achievement.id == 1:  # First Step
+            tx_count = Transaction.query.filter_by(user_id=current_user.id).count()
+            initial_progress = min(100, tx_count * 100) 
+        
+        elif achievement.id == 2:  # Saving Star
+            savings_txs = Transaction.query.filter_by(
+                user_id=current_user.id, 
+                category='savings'
+            ).all()
+            savings_amount = sum(float(tx.amount) for tx in savings_txs) if savings_txs else 0
+            initial_progress = min(100, int((savings_amount / 1000) * 100))
+        
+        elif achievement.id == 3:  # Social Circle
+            # Fix: Use .count() instead of len() for SQLAlchemy AppenderQuery
+            friend_count = current_user.friends.count()
+            initial_progress = min(100, int((friend_count / 5) * 100))
+        
+        elif achievement.id == 5:  # Income Champion
+            income_txs = Transaction.query.filter_by(
+                user_id=current_user.id,
+                type=TransactionType.income
+            ).all()
+            income_amount = sum(float(tx.amount) for tx in income_txs) if income_txs else 0
+            initial_progress = min(100, int((income_amount / 5000) * 100))
+        
+        # Create user achievement with calculated progress
+        user_achievement = UserAchievement(
+            user_id=current_user.id,
+            achievement_id=achievement.id,
+            progress=initial_progress,
+            is_public=True,
+        )
+        
+        # If progress is 100%, set earned date
+        if initial_progress >= 100:
+            user_achievement.earned_date = datetime.utcnow()
+            user_achievement.progress = 100
+        
+        db.session.add(user_achievement)
+    
+    # Commit any new achievements
+    if needed_achievements:
+        db.session.commit()
+        
+        # Reload achievements to get the newly created ones (only for our 5 specific achievements)
+        earned_achievements = UserAchievement.query.filter(
+            UserAchievement.user_id == current_user.id,
+            UserAchievement.progress >= 100,
+            UserAchievement.achievement_id.in_([1, 2, 3, 4, 5])
+        ).order_by(UserAchievement.earned_date.desc()).all()
+        
+        in_progress_achievements = UserAchievement.query.filter(
+            UserAchievement.user_id == current_user.id,
+            UserAchievement.progress < 100,
+            UserAchievement.achievement_id.in_([1, 2, 3, 4, 5])
+        ).all()
+    else:
+        in_progress_achievements = existing_user_achievements
+    
+    # Prepare data for template - make sure we only have our 5 specific achievements
+    in_progress_achievements = [ua for ua in existing_user_achievements if ua.achievement_id in [1, 2, 3, 4, 5]]
+    
+    # Calculate total points
+    total_points = sum(ua.achievement.points for ua in earned_achievements)
+    
+    return render_template(
+        'achievements.html',
+        earned_achievements=earned_achievements,
+        in_progress_achievements=in_progress_achievements,
+        total_points=total_points
+    )
 
 @main.route('/logout', methods=['POST'])
 @login_required
@@ -125,7 +288,7 @@ def api_user_search():
         query = query.filter(User.username.ilike(f"%{q}%"))
     matches = query.order_by(User.username).limit(10).all()
 
-    # pre-fetch  friend IDs into a set
+    # pre-fetch friend IDs into a set
     my_friend_ids = {u.id for u in current_user.friends}
 
     payload = []
@@ -136,7 +299,6 @@ def api_user_search():
             "is_friend":  u.id in my_friend_ids
         })
     return jsonify(payload)
-
 
 @main.route("/api/add_friend", methods=["POST"])
 @login_required
@@ -158,33 +320,47 @@ def api_add_friend():
     return jsonify({"status": "added"}), 201
 
 
-@main.route("/api/remove_friend", methods=["POST"])
+
+
+
+
+
+
+
+
+
+@main.route('/api/remove_friend', methods=['POST'])
 @login_required
 def api_remove_friend():
     data = request.get_json(silent=True) or {}
     friend_id = data.get("friend_id")
 
-    if not isinstance(friend_id, int) or friend_id == current_user.id:
-        abort(400, "Invalid friend_id")
-
-    friend = User.query.get_or_404(friend_id)
-
-    if friend not in current_user.friends:
-        return jsonify({"status": "not_friends"}), 200
-
-    current_user.friends.remove(friend)
+    if not friend_id:
+        return jsonify({"error": "Missing friend_id"}), 400
+        
+    friend = User.query.get(friend_id)
+    if not friend:
+        return jsonify({"error": "User not found"}), 404
+    
+    # Remove from current user's friends
+    if friend in current_user.friends:
+        current_user.friends.remove(friend)
+    
+    # Remove from friend's friends list (other direction)
+    if current_user in friend.friends:
+        friend.friends.remove(current_user)
+    
     db.session.commit()
     return jsonify({"status": "removed"}), 200
-
 
 @main.route("/api/friends")
 @login_required
 def api_friends():
-    payload = [
-        {"id": f.id, "username": f.username}
-        for f in sorted(current_user.friends, key=lambda u: u.username.lower())
-    ]
-    return jsonify(payload)
+    """API endpoint to get current user's friends"""
+    return jsonify([{'id': friend.id, 'username': friend.username}
+                 for friend in current_user.friends.all()])
+
+
 
 @main.route('/api/shared_users')
 @login_required
@@ -579,10 +755,358 @@ def api_forecast_simulate():
         elif delta < 0:
             advice += " Good move—projection stays comfortably under budget."
 
-    return jsonify(series=adjusted, advice=advice)
 
-#   ++++++++++++++++++++++ END forecast ++++++++++++++++++++++++++++++
+#   +++++++++++++++++++ END forecast ++++++++++++++++++++++++++++++
 
+#   +++++++++++++++++++ achievements API +++++++++++++++++++++
+@main.route('/api/achievements')
+@login_required
+def get_achievements():
+    # Force recalculation if requested
+    if request.args.get('refresh') == '1':
+        # Import the achievement engine
+        from app.achievement_engine import check_achievements
+        # Check all achievements for this user
+        check_achievements(current_user.id)
+    
+    """API endpoint to get user achievements for notifications"""
+    # Get user's earned achievements
+    earned_achievements = UserAchievement.query.filter(
+        UserAchievement.user_id == current_user.id,
+        UserAchievement.progress >= 100
+    ).order_by(UserAchievement.earned_date.desc()).all()
+    
+    # Get user's in-progress achievements
+    in_progress_achievements = UserAchievement.query.filter(
+        UserAchievement.user_id == current_user.id,
+        UserAchievement.progress < 100
+    ).all()
+    
+    # Format earned achievements for the response
+    earned_data = [{
+        'id': ua.achievement_id,
+        'title': ua.achievement.title,
+        'description': ua.achievement.description,
+        'icon': ua.achievement.icon,
+        'points': ua.achievement.points,
+        'earned_date': ua.earned_date.strftime('%Y-%m-%d %H:%M:%S'),
+        'category': ua.achievement.category.value
+    } for ua in earned_achievements]
+    
+    # Format in-progress achievements
+    in_progress_data = [{
+        'id': ua.achievement_id,
+        'title': ua.achievement.title,
+        'description': ua.achievement.description,
+        'icon': ua.achievement.icon,
+        'points': ua.achievement.points,
+        'progress': ua.progress,
+        'category': ua.achievement.category.value
+    } for ua in in_progress_achievements]
+    
+    # Calculate total points
+    total_points = sum(ua.achievement.points for ua in earned_achievements)
+    
+    return jsonify({
+        'earned': earned_data,
+        'in_progress': in_progress_data,
+        'total_points': total_points
+    })
+
+
+@main.route('/api/achievements/debug')
+@login_required
+def debug_achievements():
+    """Debug endpoint to view current achievement progress"""
+    # Get user's achievement data
+    user_achievements = UserAchievement.query.filter_by(
+        user_id=current_user.id
+    ).all()
+    
+    # Get their progress status
+    debug_data = {}
+    for ua in user_achievements:
+        # Calculate the current progress for the achievement
+        from app.achievement_engine import ACHIEVEMENT_CHECKS
+        achievement = ua.achievement
+        check_func = ACHIEVEMENT_CHECKS.get(achievement.id)
+        
+        current_progress = "Unknown"
+        if check_func:
+            # Call the check function directly
+            result = check_func(current_user, achievement, None)
+            current_progress = f"{int(result * 100)}%" if isinstance(result, float) else result
+        
+        debug_data[str(achievement.id)] = {
+            "id": achievement.id,
+            "title": achievement.title,
+            "stored_progress": f"{ua.progress}%",
+            "calculated_progress": current_progress
+        }
+    
+    return jsonify(debug_data)
+
+@main.route('/api/achievements/<int:achievement_id>/progress')
+@login_required
+def get_achievement_progress(achievement_id):
+    """Get detailed progress information for a specific achievement"""
+    # Find the achievement
+    achievement = Achievement.query.get_or_404(achievement_id)
+    
+    # Get user's current achievement progress
+    user_achievement = UserAchievement.query.filter_by(
+        user_id=current_user.id,
+        achievement_id=achievement_id
+    ).first()
+    
+    # Base progress data
+    progress_data = {
+        'id': achievement.id,
+        'title': achievement.title,
+        'description': achievement.description,
+        'icon': achievement.icon,
+        'points': achievement.points,
+        'category': achievement.category.value,
+        'progress': user_achievement.progress if user_achievement else 0
+    }
+    
+    # Add achievement-specific progress stats based on ID
+    # First Step (ID: 1) - Transaction Count
+    if achievement.id == 1:
+        transaction_count = Transaction.query.filter_by(user_id=current_user.id).count()
+        progress_data['transaction_count'] = transaction_count
+    
+    # Saving Star (ID: 2) - Savings Amount
+    elif achievement.id == 2:
+        # Sum savings transactions (assuming category="savings")
+        savings_txs = Transaction.query.filter_by(
+            user_id=current_user.id,
+            category='savings'
+        ).all()
+        savings_amount = sum(float(tx.amount) for tx in savings_txs) if savings_txs else 0
+        progress_data['savings_amount'] = savings_amount
+    
+    # Social Circle (ID: 3) - Friend Count
+    elif achievement.id == 3:
+        friend_count = len(current_user.friends)
+        progress_data['friend_count'] = friend_count
+    
+    # Income Champion (ID: 4) - Income Amount
+    elif achievement.id == 4:
+        # Sum income transactions
+        income_txs = Transaction.query.filter_by(
+            user_id=current_user.id,
+            type=TransactionType.income
+        ).all()
+        income_amount = sum(float(tx.amount) for tx in income_txs) if income_txs else 0
+        progress_data['income_amount'] = income_amount
+    
+    return jsonify(progress_data)
+
+@main.route('/api/achievements/visibility', methods=['POST'])
+@login_required
+def update_achievement_visibility():
+    """Update the visibility of a user's achievement"""
+    data = request.get_json(silent=True)
+    
+    if not data or 'achievement_id' not in data or 'is_public' not in data:
+        return jsonify({'error': 'Invalid data'}), 400
+    
+    achievement_id = data.get('achievement_id')
+    is_public = data.get('is_public')
+    
+    # Get the user achievement
+    user_achievement = UserAchievement.query.filter_by(
+        id=achievement_id,
+        user_id=current_user.id
+    ).first()
+    
+    if not user_achievement:
+        return jsonify({'error': 'Achievement not found'}), 404
+    
+    # Update visibility
+    user_achievement.is_public = bool(is_public)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'achievement_id': achievement_id,
+        'is_public': user_achievement.is_public
+    })
+
+@main.route('/friends-achievements')
+@login_required
+def friends_achievements():
+    """Show achievements from user's friends"""
+    # Get all of the user's friends
+    friends = current_user.friends
+    
+    # Dictionary to store friend -> achievements mapping
+    friends_achievements = {}
+    
+    # For each friend, get their public achievements
+    for friend in friends:
+        # Get only public achievements that are completed
+        achievements = UserAchievement.query.filter(
+            UserAchievement.user_id == friend.id,
+            UserAchievement.is_public == True,
+            UserAchievement.progress >= 100
+        ).order_by(UserAchievement.earned_date.desc()).all()
+        
+        # Add to dictionary if they have any public achievements
+        if achievements:
+            friends_achievements[friend] = achievements
+    
+    return render_template('friends_achievements.html', 
+                          friends_achievements=friends_achievements,
+                          current_user=current_user)
+
+#   ++++++++++++++++++++++ Community Features +++++++++++++++++++++
+@main.route('/community')
+@login_required
+def community():
+    try:
+        # Print debug info
+        print(f"DEBUG COMMUNITY: User {current_user.username} (ID: {current_user.id}) accessing community page")
+        
+        # Get public goals from friends and from the current user
+        friend_ids = [friend.id for friend in current_user.friends] + [friend.id for friend in current_user.friended_by]
+        friend_ids = list(set(friend_ids))  # Remove duplicates
+        
+        print(f"DEBUG COMMUNITY: Found {len(friend_ids)} friends")
+        
+        # Add current user to the list
+        user_ids = friend_ids + [current_user.id]
+        
+        # Get only public goals from the current user
+        user_goals = Goal.query.filter_by(user_id=current_user.id, is_public=True).all()
+        print(f"DEBUG COMMUNITY: User has {len(user_goals)} public personal goals")
+        
+        # Get public goals from friends
+        friend_goals = Goal.query.filter(
+            Goal.user_id.in_(friend_ids),
+            Goal.is_public == True
+        ).all()
+        print(f"DEBUG COMMUNITY: Found {len(friend_goals)} public friend goals")
+        
+        # Combine the goals
+        all_goals = user_goals + friend_goals
+        
+        # Sort by creation date (newest first)
+        all_goals.sort(key=lambda g: g.created_at, reverse=True)
+        
+        # Get the users for displaying names
+        users = {user.id: user for user in User.query.filter(User.id.in_(user_ids)).all()}
+        
+        return render_template(
+            'community.html',
+            goals=all_goals,
+            users=users,
+            current_user=current_user
+        )
+    except Exception as e:
+        # If there's an error, log it and return an empty list of goals
+        print(f"ERROR in community goals: {str(e)}")
+        return render_template(
+            'community.html',
+            goals=[],
+            users={current_user.id: current_user},
+            current_user=current_user
+        )
+
+@main.route('/goals')
+@login_required
+def user_goals():
+    # Get all goals for the current user
+    goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.created_at.desc()).all()
+    
+    return render_template(
+        'goals.html',
+        goals=goals
+    )
+
+@main.route('/goals/new', methods=['GET', 'POST'])
+@login_required
+def new_goal():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        description = request.form.get('description')
+        target_amount = request.form.get('target_amount')
+        target_date_str = request.form.get('target_date')
+        is_public = request.form.get('is_public') == 'on'
+        
+        # Basic validation
+        if not title or not target_amount:
+            flash('Title and target amount are required', 'error')
+            return redirect(url_for('main.new_goal'))
+        
+        try:
+            target_amount = float(target_amount)
+            target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date() if target_date_str else None
+        except ValueError:
+            flash('Invalid amount or date format', 'error')
+            return redirect(url_for('main.new_goal'))
+        
+        goal = Goal(
+            user_id=current_user.id,
+            title=title,
+            description=description,
+            target_amount=target_amount,
+            current_amount=0,
+            target_date=target_date,
+            is_public=is_public
+        )
+        
+        db.session.add(goal)
+        db.session.commit()
+        
+        flash('Goal created successfully!', 'success')
+        return redirect(url_for('main.community'))
+    
+    return render_template('goal_form.html', goal=None)
+
+@main.route('/goals/<int:goal_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_goal(goal_id):
+    goal = Goal.query.get_or_404(goal_id)
+    
+    # Security check - only the owner can edit
+    if goal.user_id != current_user.id:
+        abort(403)
+    
+    if request.method == 'POST':
+        goal.title = request.form.get('title')
+        goal.description = request.form.get('description')
+        goal.target_amount = float(request.form.get('target_amount'))
+        goal.current_amount = float(request.form.get('current_amount', 0))
+        goal.is_public = request.form.get('is_public') == 'on'
+        
+        target_date_str = request.form.get('target_date')
+        if target_date_str:
+            goal.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
+        
+        goal.is_completed = goal.current_amount >= goal.target_amount
+        
+        db.session.commit()
+        flash('Goal updated successfully!', 'success')
+        return redirect(url_for('main.user_goals'))
+    
+    return render_template('goal_form.html', goal=goal)
+
+@main.route('/goals/<int:goal_id>/delete', methods=['POST'])
+@login_required
+def delete_goal(goal_id):
+    goal = Goal.query.get_or_404(goal_id)
+    
+    # Security check - only the owner can delete
+    if goal.user_id != current_user.id:
+        abort(403)
+    
+    db.session.delete(goal)
+    db.session.commit()
+    
+    flash('Goal deleted successfully!', 'success')
+    return redirect(url_for('main.user_goals'))
 
 #   ++++++++++++++++++++++ bill splitting +++++++++++++++++++++
 @main.route('/splitBill')
