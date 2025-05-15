@@ -88,6 +88,8 @@ flask run
 http://127.0.0.1:5000
 ```
 
+---
+
 ### ✅ Running Tests
 
 The platform includes 12 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
@@ -125,6 +127,8 @@ def test_duplicate_registration():
     # Attempts to register the same user twice and checks for error message
 ```
 
+---
+
 ### 📚 Notes for Assessors
 
 This project follows best practices for structure, testing, and modularization.
@@ -134,6 +138,8 @@ Git commits are structured by task/module, demonstrating collaborative workflow 
 Detailed inline comments and docstrings are provided throughout the codebase.
 
 README includes full setup instructions for replication and assessment.
+
+---
 
 **👨‍💻 Authors**
 
