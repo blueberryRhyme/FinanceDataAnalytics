@@ -10,21 +10,84 @@ from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.firefox import GeckoDriverManager
+from webdriver_manager.microsoft import EdgeChromiumDriverManager
+from selenium.webdriver.firefox.service import Service as FirefoxService
+from selenium.webdriver.edge.service import Service as EdgeService
+
 
 BASE_URL = "http://127.0.0.1:5000"
 
-# Original helper functions, kept unchanged
+# Screen profiles to be used for random testing
 
-def get_driver(position_index):
-    """Launch headed Chrome, size 900×600, and position side-by-side."""
-    opts = Options()
-    service = ChromeService(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=opts)
+COMMON_SCREEN_PROFILES = [
+    {"name": "1080p", "width": 1920, "height": 1080, "mobile": False},
+    {"name": "iPhone SE", "device_name": "iPhone SE", "mobile": True},
+    {"name": "iPhone X", "device_name": "iPhone X", "mobile": True},
+    {"name": "Pixel 2", "device_name": "Pixel 2", "mobile": True},
+    {"name": "Nexus 5X", "device_name": "Nexus 5X", "mobile": True},
+    {"name": "iPad", "device_name": "iPad", "mobile": True},
+    {"name": "iPad Mini", "device_name": "iPad Mini", "mobile": True},
+    {"name": "iPad Pro", "device_name": "iPad Pro", "mobile": True},
+    {"name": "MacBook Pro 13", "width": 1440, "height": 900, "mobile": False},
+]
+
+# This section of redacted code is if we want to use chrome only
+'''def get_driver(position_index, browser=None):
+    if browser is None:
+        browser = random.choice(["chrome", "firefox", "edge"])
+
+    if browser == "firefox":
+        service = FirefoxService(GeckoDriverManager().install())
+        driver = webdriver.Firefox(service=service)
+    elif browser == "edge":
+        service = EdgeService(EdgeChromiumDriverManager().install())
+        driver = webdriver.Edge(service=service)
+    else:  # default to chrome
+        service = ChromeService(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service)
+
     driver.set_window_size(900, 600)
+    driver.set_window_position(900 * position_index, 0)
+    driver.implicitly_wait(5)
+    return driver'''
+
+def get_driver(position_index, browser=None):
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+
+    profile = random.choice(COMMON_SCREEN_PROFILES)
+    if browser is None:
+        browser = "chrome" if profile.get("mobile") else random.choice(["chrome", "firefox", "edge"])
+
+    print(f"Launching {browser} with profile: {profile['name']}")
+
+    if browser == "chrome":
+        opts = ChromeOptions()
+        if profile.get("mobile"):
+            opts.add_experimental_option("mobileEmulation", {"deviceName": profile["device_name"]})
+            service = ChromeService(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=opts)
+        else:
+            service = ChromeService(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service)
+            driver.set_window_size(profile["width"], profile["height"])
+    elif browser == "firefox":
+        service = FirefoxService(GeckoDriverManager().install())
+        driver = webdriver.Firefox(service=service)
+        if not profile.get("mobile"):
+            driver.set_window_size(profile["width"], profile["height"])
+    elif browser == "edge":
+        service = EdgeService(EdgeChromiumDriverManager().install())
+        driver = webdriver.Edge(service=service)
+        if not profile.get("mobile"):
+            driver.set_window_size(profile["width"], profile["height"])
+
     driver.set_window_position(900 * position_index, 0)
     driver.implicitly_wait(5)
     return driver
 
+
+# Original helper functions, kept unchanged
 
 def random_creds():
     suffix = uuid.uuid4().hex[:6]
@@ -46,7 +109,11 @@ def register(driver, username, email, password):
     driver.find_element(By.NAME, "email").send_keys(email)
     driver.find_element(By.NAME, "password").send_keys(password)
     driver.find_element(By.NAME, "confirm").send_keys(password)
-    driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
+    submit_btn = driver.find_element(By.CSS_SELECTOR, "input[type='submit']")
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", submit_btn)
+    time.sleep(0.3)  # give it time to settle
+    submit_btn.click()
+
     WebDriverWait(driver, 10).until(
         EC.url_contains("/login")
     )
@@ -247,3 +314,24 @@ def run_monthly_transactions(driver, months=6):
             driver.find_element(By.CSS_SELECTOR, "input[type='submit']").click()
             WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//h1[contains(text(), 'Recorded')]")))
             time.sleep(0.5)
+
+# This section of redacted code is to test which device names exist for mobile emulation
+'''if __name__ == "__main__":
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+
+    for profile in COMMON_SCREEN_PROFILES:
+        print(f"Trying profile: {profile['name']}")
+        try:
+            opts = ChromeOptions()
+            if profile.get("mobile"):
+                opts.add_experimental_option("mobileEmulation", {"deviceName": profile["device_name"]})
+            service = ChromeService(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=opts)
+            if not profile.get("mobile"):
+                driver.set_window_size(profile["width"], profile["height"])
+            driver.get("http://example.com")  # or your BASE_URL
+            time.sleep(2)
+            driver.quit()
+            print(f"✅ Success: {profile['name']}")
+        except Exception as e:
+            print(f"❌ Failed: {profile['name']} - {e}")'''
