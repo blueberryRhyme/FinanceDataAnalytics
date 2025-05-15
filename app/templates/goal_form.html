@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}{% if goal %}Edit Goal{% else %}Create New Goal{% endif %}{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>{% if goal %}Edit Goal{% else %}Create New Goal{% endif %}</h1>
+  
+  <div class="card">
+    <form method="POST" class="goal-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+      
+      <div class="form-group">
+        <label for="title">Goal Title *</label>
+        <input type="text" id="title" name="title" required 
+               value="{{ goal.title if goal else '' }}" 
+               placeholder="e.g. Save for a new car">
+      </div>
+      
+      <div class="form-group">
+        <label for="description">Description</label>
+        <textarea id="description" name="description" rows="4" 
+                  placeholder="Describe your financial goal...">{{ goal.description if goal else '' }}</textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="target_amount">Target Amount ($) *</label>
+        <input type="number" id="target_amount" name="target_amount" step="0.01" min="0" required 
+               value="{{ "%.2f"|format(goal.target_amount) if goal else '' }}">
+      </div>
+      
+      {% if goal %}
+      <div class="form-group">
+        <label for="current_amount">Current Amount ($)</label>
+        <input type="number" id="current_amount" name="current_amount" step="0.01" min="0" 
+               value="{{ "%.2f"|format(goal.current_amount) }}">
+      </div>
+      {% endif %}
+      
+      <div class="form-group">
+        <label for="target_date">Target Date</label>
+        <input type="date" id="target_date" name="target_date" 
+               value="{{ goal.target_date.strftime('%Y-%m-%d') if goal and goal.target_date else '' }}">
+      </div>
+      
+      <div class="form-group checkbox-group">
+        <input type="checkbox" id="is_public" name="is_public" 
+               {% if goal is none or goal.is_public %}checked{% endif %}>
+        <label for="is_public">Share with Community</label>
+        <p class="help-text">When enabled, your goal will be visible to your friends in the Community tab</p>
+      </div>
+      
+      <div class="form-actions">
+        <a href="{{ url_for('main.user_goals') if goal else url_for('main.community') }}" class="button-secondary">Cancel</a>
+        <button type="submit" class="button-primary">Save Goal</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .goal-form {
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: #374151;
+  }
+  
+  .form-group input[type="text"],
+  .form-group input[type="number"],
+  .form-group input[type="date"],
+  .form-group textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-size: 1rem;
+  }
+  
+  .checkbox-group {
+    display: flex;
+    align-items: flex-start;
+  }
+  
+  .checkbox-group input[type="checkbox"] {
+    margin-top: 0.25rem;
+    margin-right: 0.5rem;
+  }
+  
+  .help-text {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+    margin-left: 1.5rem;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .button-secondary {
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    text-align: center;
+  }
+  
+  .button-primary {
+    padding: 0.5rem 1rem;
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+</style>
+{% endblock %}

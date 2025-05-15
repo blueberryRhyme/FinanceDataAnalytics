@@ -1,0 +1,626 @@
+{% extends "base.html" %}
+
+{% block title %}Your Achievements{% endblock %}
+
+{% block head %}
+<style>
+  .achievement-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    grid-gap: 15px;
+    margin-top: 20px;
+    width: 100%;
+    max-width: 1200px;
+  }
+  
+  .achievement-card {
+    background-color: var(--white);
+    border-radius: 8px;
+    padding: 10px 12px 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    min-height: 150px;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  
+  .achievement-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .achievement-clickable {
+    cursor: pointer;
+    transition: transform 0.3s ease;
+  }
+  
+  .achievement-clickable:hover {
+    transform: scale(1.1);
+  }
+  
+  .achievement-detail-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+  }
+  
+  .achievement-detail-modal.show {
+    opacity: 1;
+    visibility: visible;
+  }
+  
+  .achievement-detail-content {
+    background-color: white;
+    border-radius: 15px;
+    padding: 30px;
+    max-width: 600px;
+    width: 90%;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.3s ease;
+  }
+  
+  .achievement-detail-modal.show .achievement-detail-content {
+    transform: translateY(0);
+  }
+  
+  .detail-close-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary);
+  }
+  
+  .detail-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 25px;
+  }
+  
+  .detail-icon {
+    width: 70px;
+    height: 70px;
+    background-color: rgba(46, 204, 113, 0.1);
+    color: var(--success);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    margin-right: 20px;
+  }
+  
+  .detail-title {
+    margin: 0 0 8px 0;
+    font-size: 22px;
+    color: var(--text-primary);
+  }
+  
+  .detail-description {
+    color: var(--text-secondary);
+    font-size: 16px;
+  }
+  
+  .detail-progress-container {
+    margin-bottom: 25px;
+  }
+  
+  .detail-progress-item {
+    margin-bottom: 15px;
+  }
+  
+  .detail-progress-label {
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--text-primary);
+  }
+  
+  .detail-progress-bar-container {
+    height: 10px;
+    background-color: #e2e8f0;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-bottom: 5px;
+  }
+  
+  .detail-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--success) 100%);
+    border-radius: 5px;
+  }
+  
+  .detail-progress-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  
+  .detail-tips {
+    background-color: #f8fafc;
+    border-radius: 10px;
+    padding: 15px;
+  }
+  
+  .detail-tips h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: var(--text-primary);
+  }
+  
+  .detail-tips ul {
+    padding-left: 20px;
+    margin: 0;
+  }
+  
+  .detail-tips li {
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+  }
+  
+  .achievement-actions {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+  }
+  
+  .action-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    background-color: var(--primary);
+    color: white;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  
+  .action-button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  
+  .refresh-button {
+    background-color: #2563eb;
+    margin-right: 10px;
+  }
+  
+  .refresh-button:hover {
+    background-color: #1d4ed8;
+  }
+  
+  
+  .achievement-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: var(--background-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .achievement-icon i {
+    font-size: 32px;
+    color: var(--primary);
+  }
+  
+  .achievement-icon-1 i {
+    color: #3498db; /* Blue for First Step */
+  }
+  
+  .achievement-icon-2 i {
+    color: #f1c40f; /* Yellow for Saving Star */
+  }
+  
+  .achievement-icon-3 i {
+    color: #27ae60; /* Green for Social Circle */
+  }
+  
+  .achievement-icon-4 i {
+    color: #e67e22; /* Orange for Income Champion */
+  }
+  
+  .achievement-card.locked .achievement-icon {
+    background-color: rgba(100, 116, 139, 0.1);
+    color: var(--secondary);
+  }
+  
+  .achievement-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 10px;
+  }
+  
+  .achievement-description {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  
+  .achievement-date {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  
+  .achievement-points {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background-color: var(--primary);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+  }
+  
+  .achievement-progress-container {
+    width: 100%;
+    height: 8px;
+    background-color: var(--background-light);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0;
+  }
+  
+  .achievement-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+    border-radius: 4px;
+    width: var(--progress-width, 0%);
+    transition: width 0.5s ease;
+  }
+  
+  .achievement-progress-text {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: right;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+  
+  /* Tab navigation */
+  .achievement-tabs {
+    display: flex;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #eaeaea;
+    width: 100%;
+  }
+  
+  .achievement-tab {
+    padding: 12px 24px;
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--text-secondary);
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+  }
+  
+  .achievement-tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+  
+  .achievement-tab:hover:not(.active) {
+    color: var(--text-primary);
+    border-bottom-color: #ddd;
+  }
+  
+  .achievement-section {
+    margin-bottom: 40px;
+  }
+  
+  .achievement-section-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 20px;
+    color: var(--text-primary);
+  }
+  
+  .achievement-total {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 18px;
+    color: var(--text-primary);
+  }
+  
+  .achievement-total span {
+    font-weight: 600;
+    color: var(--primary);
+  }
+  
+  /* Visibility toggle styling */
+  .achievement-visibility-toggle {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 2;
+  }
+  
+  .toggle-checkbox {
+    display: none;
+  }
+  
+  .toggle-label {
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.8);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    transition: all 0.2s ease;
+  }
+  
+  .toggle-label:hover {
+    background-color: rgba(255, 255, 255, 1);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+  }
+  
+  .toggle-label i {
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  
+  .toggle-checkbox:checked + .toggle-label i {
+    color: var(--primary);
+  }
+  
+  /* Animation for new achievements */
+  @keyframes achievementPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+  
+  .achievement-card.new-achievement {
+    animation: achievementPulse 2s infinite;
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.3);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="header-with-action">
+    <h1>Your Achievements</h1>
+    <div class="achievement-actions">
+      <a href="{{ url_for('main.achievements') }}?refresh=1" class="action-button refresh-button">
+        <i class="fa-solid fa-rotate"></i> Refresh Progress
+      </a>
+      <a href="{{ url_for('main.friends_achievements') }}" class="action-button">
+        <i class="fa-solid fa-user-group"></i> Friends' Achievements
+      </a>
+      <div class="achievement-points-total">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+          <path d="M3.866 14.85c-.078.444.36.791.746.593l4.39-2.256 4.389 2.256c.386.198.824-.149.746-.592l-.83-4.73 3.522-3.356c.33-.314.16-.888-.282-.95l-4.898-.696L8.465.792a.513.513 0 0 0-.927 0L5.354 5.12l-4.898.696c-.441.062-.612.636-.283.95l3.523 3.356-.83 4.73zm4.905-2.767-3.686 1.894.694-3.957a.565.565 0 0 0-.163-.505L1.71 6.745l4.052-.576a.525.525 0 0 0 .393-.288L8 2.223l1.847 3.658a.525.525 0 0 0 .393.288l4.052.575-2.906 2.77a.565.565 0 0 0-.163.506l.694 3.957-3.686-1.894a.503.503 0 0 0-.461 0z"/>
+        </svg>
+        Total Points: <span>{{ total_points }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="achievement-tabs">
+    <div class="achievement-tab active" data-tab="all">All Achievements</div>
+    <div class="achievement-tab" data-tab="earned">Earned</div>
+    <div class="achievement-tab" data-tab="progress">In Progress</div>
+  </div>
+
+  <!-- Earned Achievements -->
+  <div id="earned-achievements" class="achievement-section">
+    <h2 class="achievement-section-title">Recently Earned</h2>
+    <div class="achievement-grid">
+      {% for ua in earned_achievements %}
+      <div class="achievement-card" data-category="{{ ua.achievement.category.value }}">
+        <div class="achievement-visibility-toggle" title="Toggle visibility to friends">
+          <input type="checkbox" id="visibility-{{ ua.id }}" class="toggle-checkbox" {{ 'checked' if ua.is_public else '' }} data-achievement-id="{{ ua.id }}">
+          <label for="visibility-{{ ua.id }}" class="toggle-label">
+            <i class="fa-solid {{ 'fa-eye' if ua.is_public else 'fa-eye-slash' }}"></i>
+          </label>
+        </div>
+        <div class="achievement-icon achievement-icon-{{ ua.achievement_id }}">
+          {% if ua.achievement_id == 1 %}<i class="fa-solid fa-shoe-prints"></i>
+          {% elif ua.achievement_id == 2 %}<i class="fa-solid fa-star"></i>
+          {% elif ua.achievement_id == 3 %}<i class="fa-solid fa-user-group"></i>
+          {% elif ua.achievement_id == 4 %}<i class="fa-solid fa-trophy"></i>
+          {% else %}<i class="{{ ua.achievement.icon }}"></i>{% endif %}
+        </div>
+        <div class="achievement-title">
+          {% if ua.achievement.title == "First Step" %}
+            👣 {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Saving Star" %}
+            ⭐ {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Streak Keeper" %}
+            🔥 {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Social Circle" %}
+            👥 {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Income Champion" %}
+            💰 {{ ua.achievement.title }}
+          {% else %}
+            {{ ua.achievement.title }}
+          {% endif %}
+        </div>
+        <div class="achievement-description">{{ ua.achievement.description }}</div>
+        <div class="achievement-date">Earned on {{ ua.earned_date.strftime('%b %d, %Y') }}</div>
+        <div class="achievement-points">{{ ua.achievement.points }} pts</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- In Progress Achievements -->
+  <div id="progress-achievements" class="achievement-section">
+    <h2 class="achievement-section-title">In Progress</h2>
+    <div class="achievement-grid">
+      {% for ua in in_progress_achievements %}
+      <div class="achievement-card" data-category="{{ ua.achievement.category.value }}" data-id="{{ ua.achievement_id }}">
+        <div class="achievement-icon achievement-clickable achievement-icon-{{ ua.achievement_id }}" data-achievement-id="{{ ua.achievement_id }}">
+          {% if ua.achievement_id == 1 %}<i class="fa-solid fa-shoe-prints"></i>
+          {% elif ua.achievement_id == 2 %}<i class="fa-solid fa-star"></i>
+          {% elif ua.achievement_id == 3 %}<i class="fa-solid fa-user-group"></i>
+          {% elif ua.achievement_id == 4 %}<i class="fa-solid fa-trophy"></i>
+          {% else %}<i class="{{ ua.achievement.icon }}"></i>{% endif %}
+        </div>
+        <div class="achievement-title">
+          {% if ua.achievement.title == "First Step" %}
+            👣 {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Saving Star" %}
+            ⭐ {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Streak Keeper" %}
+            🔥 {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Social Circle" %}
+            👥 {{ ua.achievement.title }}
+          {% elif ua.achievement.title == "Income Champion" %}
+            💰 {{ ua.achievement.title }}
+          {% else %}
+            {{ ua.achievement.title }}
+          {% endif %}
+        </div>
+        <div class="achievement-description">{{ ua.achievement.description }}</div>
+        <div class="achievement-progress-container">
+          <div class="achievement-progress-bar" data-percent="{{ ua.progress }}" style="--progress-width: {{ ua.progress }}%"></div>
+        </div>
+        <div class="achievement-progress-text">{{ ua.progress }}% complete</div>
+        <div class="achievement-points">{{ ua.achievement.points }} pts</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="achievement-total">
+    You've earned <span>{{ earned_count }}</span> out of <span>{{ total_count }}</span> achievements!
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  /* Add event listeners to achievement icons */
+  document.addEventListener('DOMContentLoaded', function() {
+    const achievementIcons = document.querySelectorAll('.achievement-clickable');
+    achievementIcons.forEach(icon => {
+      icon.addEventListener('click', function() {
+        const achievementId = parseInt(this.getAttribute('data-achievement-id'), 10);
+        showAchievementDetails(achievementId);
+      });
+    });
+  });
+
+  function getAchievementIcon(achievementId) {
+    // Convert to number and get appropriate icon
+    switch(parseInt(achievementId)) {
+      case 1: return 'fa-solid fa-shoe-prints';
+      case 2: return 'fa-solid fa-star';
+      case 3: return 'fa-solid fa-fire';
+      case 4: return 'fa-solid fa-user-group';
+      case 5: return 'fa-solid fa-money-bill-wave';
+      default: return 'fa-solid fa-award';
+    }
+  }
+
+  // Achievement details modal
+  function showAchievementDetails(achievementId) {
+    // Fetch real-time progress data for this achievement
+    fetch(`/api/achievements/${achievementId}/progress`)
+      .then(response => response.json())
+      .then(data => {
+        // Create and show a modal with detailed progress
+        const modal = document.createElement('div');
+        modal.className = 'achievement-detail-modal';
+        modal.innerHTML = `
+          <h3 class="detail-title">${data.title} <span class="title-icon"><i class="${getAchievementIcon(data.id)}"></i></span></h3>
+          <p class="detail-description">${data.description}</p>
+          <div class="detail-progress-container">
+            <div class="detail-progress-bar" style="width: ${data.progress}%;"></div>
+          </div>
+          <p class="detail-progress-text">${data.progress}% complete</p>
+          <p class="detail-points">${data.points} pts</p>
+        `;
+        document.body.appendChild(modal);
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const tabs = document.querySelectorAll('.achievement-tab');
+    const sections = {
+      'all': document.querySelectorAll('.achievement-section'),
+      'earned': document.querySelectorAll('#earned-achievements'),
+      'progress': document.querySelectorAll('#progress-achievements')
+    };
+    
+    // Tab switching functionality
+    tabs.forEach(tab => {
+      tab.addEventListener('click', function() {
+        // Remove active class from all tabs
+        tabs.forEach(t => t.classList.remove('active'));
+        
+        // Add active class to clicked tab
+        this.classList.add('active');
+        
+        // Hide all sections
+        Object.values(sections).forEach(sectionList => {
+          sectionList.forEach(section => {
+            section.style.display = 'none';
+          });
+        });
+        
+        // Show sections for selected tab
+        const selectedTab = this.getAttribute('data-tab');
+        sections[selectedTab].forEach(section => {
+          section.style.display = 'block';
+        });
+      });
+    });
+    
+    // Handle achievement visibility toggle
+    const visibilityToggles = document.querySelectorAll('.toggle-checkbox');
+    visibilityToggles.forEach(toggle => {
+      toggle.addEventListener('change', function() {
+        const achievementId = this.getAttribute('data-achievement-id');
+        const isPublic = this.checked;
+        const iconElement = this.nextElementSibling.querySelector('i');
+        
+        // Update icon
+        if (isPublic) {
+          iconElement.classList.remove('fa-eye-slash');
+          iconElement.classList.add('fa-eye');
+        } else {
+          iconElement.classList.remove('fa-eye');
+          iconElement.classList.add('fa-eye-slash');
+        }
+      });
+    });
+  });
+</script>
+{% endblock %}

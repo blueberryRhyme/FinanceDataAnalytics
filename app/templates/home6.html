@@ -27,32 +27,12 @@
     }
 
     body {
+      margin: 0;
       font-family: 'Inter', sans-serif;
       display: flex;
       height: 100vh;
       background: var(--background);
       color: var(--text-primary);
-      overflow: hidden;
-    }
-
-    /* ── HAMBURGER (mobile) ─────────────────────────────────────────────── */
-    .hamburger {
-      display: none;
-      position: fixed;
-      top: 16px;
-      left: 16px;
-      width: 28px;
-      height: 22px;
-      flex-direction: column;
-      justify-content: space-between;
-      cursor: pointer;
-      z-index: 1001;
-    }
-    .hamburger span {
-      display: block;
-      height: 3px;
-      background: var(--primary);
-      border-radius: 2px;
     }
 
     /* Sidebar with vertical centering */
@@ -70,7 +50,6 @@
       border-radius: 24px;
       position: relative;
       overflow-y: auto;
-      transition: transform .3s ease;
     }
 
     .sidebar-title {
@@ -82,7 +61,7 @@
       position: relative;
       z-index: 1;
     }
-
+    
     .sidebar::before {
       content: '';
       position: absolute;
@@ -93,6 +72,7 @@
       background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
     }
 
+    /* Slider button style */
     .slider-button {
       background-color: var(--white);
       border: 1px solid #e2e8f0;
@@ -215,6 +195,7 @@
       transform: translateY(-2px);
     }
 
+    /* Centered content container */
     .content-container {
       text-align: center;
       width: 100%;
@@ -270,92 +251,63 @@
       z-index: 1;
       padding: 0;
     }
-
-    /* ── RESPONSIVE BREAKPOINTS ───────────────────────────────────────── */
-
-    /* Tablet / Mobile: off-canvas sidebar + hamburger */
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-        overflow: visible;
-      }
-      .hamburger {
-        display: flex;
-      }
-      .sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        transform: translateX(-100%);
-        width: 100vw;
-        height: 100vh;
-        margin: 0;
-        padding: 32px 24px;
-        background: var(--white);
-        z-index: 1000;
-      }
-      .sidebar.open {
-        transform: translateX(0);
-      }
-      .main {
-        padding: 20px 16px;
-        margin-top: 60px;
-      }
-    }
   </style>
 </head>
 <body>
-
-  <!-- Hamburger toggle (mobile only) -->
-  <div class="hamburger" onclick="document.querySelector('.sidebar').classList.toggle('open')">
-    <span></span>
-    <span></span>
-    <span></span>
-  </div>
 
   <!-- Sidebar -->
   <div class="sidebar">
     <h2 class="sidebar-title">Services</h2>
 
-    <button class="slider-button">Transaction Insights</button>
-    <div class="slider-content">
-      Upload your CSV and let us generate clear, interactive visualizations so you can see exactly where your money goes.
-    </div>
+    <button class="slider-button" onclick="toggleSlider(0)">My Portfolio</button>
+    <div class="slider-content">View and manage your financial portfolio, investments, and assets.</div>
 
-    <button class="slider-button">Bill Splitting with Friends</button>
-    <div class="slider-content">
-      Effortlessly split bills, assign shares, and keep track of who owes what in your group.
-    </div>
+    <button class="slider-button" onclick="toggleSlider(1)">Investment Strategies</button>
+    <div class="slider-content">Explore various investment strategies, risk management, and growth opportunities.</div>
 
-    <button class="slider-button">Expense Forecasting</button>
-    <div class="slider-content">
-      Plan ahead—predict your future expenses and explore how tweaks to spending or savings will impact your budget.
-    </div>
+    <button class="slider-button" onclick="toggleSlider(2)">Market Insights</button>
+    <div class="slider-content">Get the latest news and analysis on stock markets, forex, and commodities.</div>
+
+    <button class="slider-button" onclick="toggleSlider(3)">Financial Planning</button>
+    <div class="slider-content">Create personalized financial plans and set long-term wealth goals.</div>
+
+    <button class="slider-button" onclick="toggleSlider(4)">Risk Analysis</button>
+    <div class="slider-content">Evaluate investment risks and optimize your portfolio allocation.</div>
+
+    <button class="slider-button" onclick="toggleSlider(5)">Performance Tracking</button>
+    <div class="slider-content">Monitor your investments' performance with detailed analytics and reports.</div>
   </div>
 
   <!-- Main Content -->
   <div class="main">
+    <!-- Title and Description centered -->
     <div class="content-container">
       <h1>Welcome to Your Financial Dashboard</h1>
       <p class="description">Manage your investments, analyze markets, and track your portfolio's growth. Sign in or create an account to get started.</p>
     </div>
 
     <form class="auth-buttons" method="get">
-      <button type="submit" formaction="{{ url_for('main.login') }}">Login to Account</button>
-      <button type="submit" formaction="{{ url_for('main.register') }}">Create an Account</button>
+      <button
+        type="submit"
+        formaction="{{ url_for('main.login') }}">
+        Login to Account
+      </button>
+    
+      <button
+        type="submit"
+        formaction="{{ url_for('main.register') }}">
+        Create an Account
+      </button>
     </form>
   </div>
 
   <script>
-    // Delegate slider toggles
-    document.querySelector('.sidebar').addEventListener('click', e => {
-      const btn = e.target.closest('.slider-button');
-      if (!btn) return;
-      const content = btn.nextElementSibling;
-      if (content && content.classList.contains('slider-content')) {
-        content.classList.toggle('open');
-      }
-    });
+    function toggleSlider(index) {
+      const contents = document.querySelectorAll('.slider-content');
+      const content = contents[index];
+      content.classList.toggle('open');
+    }
   </script>
+
 </body>
 </html>

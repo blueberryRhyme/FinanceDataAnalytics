@@ -1,0 +1,352 @@
+{% extends "base.html" %}
+
+{% block title %}Friends' Achievements{% endblock %}
+
+{% block head %}
+<style>
+  .achievement-feed {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  
+  .achievement-friend-card {
+    background-color: var(--white);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 25px;
+    transition: transform 0.3s ease;
+  }
+  
+  .achievement-friend-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .friend-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  
+  .friend-avatar {
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background-color: var(--primary-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: var(--primary);
+    margin-right: 15px;
+    font-weight: 600;
+  }
+  
+  .friend-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+  
+  .friend-time {
+    margin-left: auto;
+    font-size: 14px;
+    color: var(--text-secondary);
+  }
+  
+  .friend-achievements {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  
+  .friend-achievement {
+    background-color: #f8fafc;
+    border-radius: 12px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    transition: all 0.2s ease;
+    border-left: 4px solid var(--primary);
+  }
+  
+  .friend-achievement:hover {
+    background-color: #f1f5f9;
+    transform: translateX(5px);
+  }
+  
+  .achievement-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background-color: rgba(46, 204, 113, 0.1);
+    color: var(--success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    font-size: 20px;
+  }
+  
+  .achievement-content {
+    flex-grow: 1;
+  }
+  
+  .achievement-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 5px;
+    font-size: 16px;
+  }
+  
+  .achievement-description {
+    color: var(--text-secondary);
+    font-size: 14px;
+  }
+  
+  .achievement-date {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 5px;
+  }
+  
+  .achievement-points {
+    background-color: var(--primary);
+    color: var(--white);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 12px;
+    margin-left: 10px;
+  }
+  
+  .no-achievements {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--text-secondary);
+    font-size: 16px;
+  }
+  
+  .achievement-filter {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+  }
+  
+  .filter-dropdown {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .filter-button {
+    padding: 8px 15px;
+    background-color: var(--white);
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .filter-dropdown-content {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: var(--white);
+    min-width: 160px;
+    border-radius: 8px;
+    box-shadow: var(--shadow-md);
+    z-index: 1;
+    overflow: hidden;
+  }
+  
+  .filter-dropdown-content a {
+    padding: 10px 15px;
+    text-decoration: none;
+    display: block;
+    color: var(--text-secondary);
+    font-size: 14px;
+    transition: all 0.2s ease;
+  }
+  
+  .filter-dropdown-content a:hover {
+    background-color: #f8fafc;
+    color: var(--primary);
+  }
+  
+  .filter-dropdown:hover .filter-dropdown-content {
+    display: block;
+  }
+  
+  .filter-button:hover {
+    background-color: #f8fafc;
+  }
+  
+  /* Comment section and achievement interactions styles removed as requested */
+  
+  .comment-text {
+    color: var(--text-secondary);
+  }
+  
+  .comment-time {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+  }
+  
+  .header-with-filter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="header-with-filter">
+    <h1>Friends' Achievements</h1>
+    <div class="achievement-filter">
+      <div class="filter-dropdown">
+        <button class="filter-button">
+          <i class="fa-solid fa-filter"></i> Filter
+        </button>
+        <div class="filter-dropdown-content">
+          <a href="#" data-filter="recent" class="filter-option active">Most Recent</a>
+          <a href="#" data-filter="points" class="filter-option">Highest Points</a>
+          <a href="#" data-filter="category" class="filter-option">By Category</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="achievement-feed">
+    {% if friends_achievements %}
+      {% for friend, achievements in friends_achievements.items() %}
+        <div class="achievement-friend-card">
+          <div class="friend-header">
+            <div class="friend-avatar">{{ friend.username[0]|upper }}</div>
+            <div class="friend-name">{{ friend.username }}</div>
+            {% if achievements %}
+            <div class="friend-time">Last achievement: {{ achievements[0].earned_date.strftime('%b %d, %Y') }}</div>
+            {% endif %}
+          </div>
+          
+          <div class="friend-achievements">
+            {% if achievements %}
+              {% for achievement in achievements %}
+                <div class="friend-achievement" data-category="{{ achievement.achievement.category.value }}" data-points="{{ achievement.achievement.points }}">
+                  <div class="achievement-icon">
+                    <i class="{{ achievement.achievement.icon }}"></i>
+                  </div>
+                  <div class="achievement-content">
+                    <div class="achievement-title">{{ achievement.achievement.title }}</div>
+                    <div class="achievement-description">{{ achievement.achievement.description }}</div>
+                    <div class="achievement-date">Earned on {{ achievement.earned_date.strftime('%b %d, %Y') }}</div>
+                  </div>
+                  <div class="achievement-points">{{ achievement.achievement.points }} pts</div>
+                </div>
+                
+                <!-- Achievement interactions removed as requested -->
+              {% endfor %}
+            {% else %}
+              <p class="no-achievements">No public achievements to show</p>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="no-achievements">
+        <p>No friends with achievements yet. Add friends to see their financial progress!</p>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Achievement interaction functionality removed as requested
+  document.addEventListener('DOMContentLoaded', function() {
+    // Keep filterAchievements functionality
+  });
+  
+  // Filter handling
+  document.addEventListener('DOMContentLoaded', function() {
+    const filterOptions = document.querySelectorAll('.filter-option');
+    
+    filterOptions.forEach(option => {
+      option.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Remove active class from all options
+        filterOptions.forEach(opt => opt.classList.remove('active'));
+        
+        // Add active class to clicked option
+        this.classList.add('active');
+        
+        const filterType = this.getAttribute('data-filter');
+        filterAchievements(filterType);
+      });
+    });
+  });
+  
+  function filterAchievements(filterType) {
+    const achievements = document.querySelectorAll('.friend-achievement');
+    
+    if (filterType === 'recent') {
+      // Already sorted by date in the template
+      return;
+    }
+    
+    // Simple client-side sorting in Phase 2
+    // In Phase 3 we'll implement server-side sorting
+    if (filterType === 'points') {
+      const cards = document.querySelectorAll('.achievement-friend-card');
+      
+      cards.forEach(card => {
+        const achievementsInCard = Array.from(card.querySelectorAll('.friend-achievement'));
+        
+        // Sort by points (highest first)
+        achievementsInCard.sort((a, b) => {
+          const pointsA = parseInt(a.getAttribute('data-points'), 10);
+          const pointsB = parseInt(b.getAttribute('data-points'), 10);
+          return pointsB - pointsA;
+        });
+        
+        // Reappend in the new order
+        const container = card.querySelector('.friend-achievements');
+        achievementsInCard.forEach(achievement => container.appendChild(achievement));
+      });
+    }
+    
+    if (filterType === 'category') {
+      // Group by category
+      const cards = document.querySelectorAll('.achievement-friend-card');
+      
+      cards.forEach(card => {
+        const achievementsInCard = Array.from(card.querySelectorAll('.friend-achievement'));
+        
+        // Sort by category
+        achievementsInCard.sort((a, b) => {
+          const catA = a.getAttribute('data-category');
+          const catB = b.getAttribute('data-category');
+          return catA.localeCompare(catB);
+        });
+        
+        // Reappend in the new order
+        const container = card.querySelector('.friend-achievements');
+        achievementsInCard.forEach(achievement => container.appendChild(achievement));
+      });
+    }
+  }
+</script>
+{% endblock %}

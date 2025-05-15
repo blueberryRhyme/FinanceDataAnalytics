@@ -2,9 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <!-- ensure responsive emulation works -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <script id="app-config" type="application/json">
     {{
       {
@@ -14,117 +12,409 @@
     }}
   </script>
 
-  <title>{% block title %}My App{% endblock %}</title>
+  <title>{% block title %}$$$${% endblock %}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-
   <style>
-    /* override footer layering */
-    .site-footer {
-      position: relative;
-      z-index: 1;
-      background: var(--white);
-      padding: 16px;
-      text-align: center;
-      box-shadow: var(--shadow-sm);
-    }
-
-    /* off-canvas sidebar */
-    .mobile-nav {
-      position: fixed;
-      top: 0; left: 0;
-      width: 250px;
-      height: 100vh;
-      background: var(--white);
-      z-index: 1000;
-      transform: translateX(-260px);
-      transition: transform 2.3s ease;
-      overflow-y: auto;
-      padding: 60px 16px 16px;
-    }
-    body.nav-open .mobile-nav {
-      transform: translateX(0);
-    }
-
-    .mobile-nav ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .mobile-nav li + li {
-      margin-top: 16px;
-    }
-    .mobile-nav a {
-      text-decoration: none;
-      font-size: 18px;
-      color: var(--text-primary);
-      font-weight: 500;
-    }
-
-    /* hamburger toggle */
-    .mobile-nav-toggle {
+    body {
       display: flex;
-      position: fixed;
-      top: 16px; left: 16px;
-      width: 30px; height: 24px;
-      flex-direction: column;
-      justify-content: space-between;
-      cursor: pointer;
-      z-index: 1001;
+      margin: 0;
+      min-height: 100vh;
+      transition: padding-left 0.3s ease;
     }
-    .mobile-nav-toggle span {
-      display: block;
-      height: 4px;
-      background: var(--primary);
-      border-radius: 2px;
-    }
-
-    /* always hide old main-nav if present */
-    .main-nav { display: none !important; }
-
-    .mobile-nav a:hover {
-      color: var(--primary);
-    }
-
     
+    /* Left sidebar navigation */
+    .sidebar {
+      width: 250px;
+      background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+      box-shadow: 5px 0 20px rgba(0,0,0,0.08);
+      position: fixed;
+      height: 100vh;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(0);
+      transition: all 0.4s cubic-bezier(0.3, 0, 0.2, 1);
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: #e2e8f0 transparent;
+    }
+    
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    .sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    .sidebar::-webkit-scrollbar-thumb {
+      background-color: #e2e8f0;
+      border-radius: 4px;
+    }
+    
+    /* Sidebar collapsed state */
+    body.sidebar-collapsed .sidebar {
+      transform: translateX(-280px); /* Completely off-screen */
+      box-shadow: none;
+    }
+    
+    .sidebar-nav {
+      display: flex;
+      flex-direction: column;
+      padding: 15px 0;
+    }
+    
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      text-decoration: none;
+      color: #475569;
+      font-weight: 500;
+      padding: 13px 24px;
+      margin: 3px 10px;
+      border-radius: 10px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    /* Community section styling */
+    .nav-section-title {
+      color: #94a3b8;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      padding: 20px 24px 5px;
+      margin-top: 8px;
+      position: relative;
+    }
+    
+    .sidebar-nav a:hover {
+      background-color: rgba(37, 99, 235, 0.07);
+      color: #2563eb;
+    }
+    
+    .sidebar-nav a.active {
+      background-color: rgba(37, 99, 235, 0.1);
+      color: #2563eb;
+      font-weight: 600;
+      box-shadow: 0 4px 8px rgba(37, 99, 235, 0.1);
+    }
+    
+    .sidebar-nav a.active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      width: 4px;
+      background: #2563eb;
+      border-radius: 0 2px 2px 0;
+    }
+    
+    .sidebar-nav a span {
+      margin-left: 5px;
+      position: relative;
+    }
+    
+    /* Main content area */
+    .main-container {
+      flex: 1;
+      margin-left: 250px; /* Same as sidebar width */
+      min-height: 100vh;
+      background-color: #f5f7fa;
+      transition: margin-left 0.4s cubic-bezier(0.3, 0, 0.2, 1);
+      position: relative;
+    }
+    
+    /* Main container when sidebar is collapsed */
+    body.sidebar-collapsed .main-container {
+      margin-left: 0;
+    }
+    
+    /* Toggle button for sidebar */
+    .sidebar-toggle {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 101;
+      background-color: #2ecc71;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      width: 46px;
+      height: 46px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(46, 204, 113, 0.3);
+      transition: all 0.3s ease;
+    }
+    
+    .sidebar-toggle:hover {
+      background-color: #27ae60;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(46, 204, 113, 0.4);
+    }
+    
+    .sidebar-toggle:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 6px rgba(46, 204, 113, 0.4);
+    }
+    
+    body.sidebar-collapsed .sidebar-toggle {
+      left: 20px;
+      background-color: #2563eb;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+    }
+    
+    body.sidebar-collapsed .sidebar-toggle:hover {
+      background-color: #1d4ed8;
+      box-shadow: 0 6px 12px rgba(37, 99, 235, 0.4);
+    }
+    
+    .site-content {
+      padding: 2em;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    /* Footer */
+    .site-footer {
+      text-align: center;
+      padding: 16px;
+      background: #fff;
+      width: 100%;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      box-shadow: 0 -1px 5px rgba(0,0,0,0.1);
+      z-index: 10;
+    }
+    
+    /* Logo or brand area */
+    .brand {
+      padding: 24px 20px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 1.4rem;
+      color: #1e293b;
+      border-bottom: 1px solid #e2e8f0;
+      margin-bottom: 15px;
+      background: linear-gradient(to right, #2563eb, #3b82f6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      color: transparent;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .brand::after {
+      content: "";
+      position: absolute;
+      bottom: -1px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40%;
+      height: 3px;
+      background: linear-gradient(to right, #2563eb, #3b82f6);
+      border-radius: 3px;
+    }
+    
+    /* Mobile adjustments */
+    @media (max-width: 767px) {
+      .sidebar {
+        width: 60px;
+      }
+      
+      .sidebar-nav a span {
+        display: none;
+      }
+      
+      .sidebar-nav a {
+        text-align: center;
+        padding: 15px 0;
+      }
+      
+      .main-container {
+        margin-left: 60px;
+      }
+      
+      .brand {
+        padding: 15px 5px;
+        font-size: 0.9rem;
+      }
+    }
+    
+    /* Dropdown menu styles */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .dropdown-toggle {
+      cursor: pointer;
+      position: relative;
+      padding-right: 24px;
+    }
+    
+    .dropdown-toggle::after {
+      content: '▼';
+      font-size: 8px;
+      position: absolute;
+      right: 8px;
+      top: 60%;
+      transform: translateY(-50%);
+      opacity: 0.7;
+    }
+    
+    /* Prevent the green animation on the Community tab */
+    .dropdown .nav-link::before,
+    .dropdown .nav-link::after,
+    .dropdown .nav-link:hover::before,
+    .dropdown .nav-link:hover::after {
+      display: none !important;
+    }
+    
+    .dropdown-content {
+      display: none;
+      position: absolute;
+      background-color: #f8fafc;
+      min-width: 160px;
+      box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+      z-index: 1;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .dropdown-content a {
+      color: #1e293b;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: block;
+      transition: background-color 0.2s;
+    }
+    
+    .dropdown-content a:hover {
+      background-color: #e2e8f0;
+    }
+    
+    .dropdown:hover .dropdown-content {
+      display: block;
+    }
+    
+    .dropdown:hover .dropdown-toggle {
+      color: #2563eb;
+    }
   </style>
+    {% block head %}{% endblock %}
 
-  {% block head %}{% endblock %}
 </head>
-
 <body>
-  <!-- hamburger icon -->
-  <div class="mobile-nav-toggle" onclick="document.body.classList.toggle('nav-open')">
-    <span></span>
-    <span></span>
-    <span></span>
+  <!-- Sidebar toggle button -->  
+  <button class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle Sidebar">
+    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </button>
+  
+  <!-- Left sidebar navigation -->  
+  <aside class="sidebar">
+    <div class="brand">FinShare</div>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('main.dashboard') }}" {% if request.endpoint == 'main.dashboard' %}class="active"{% endif %}>
+        <span>Dashboard</span>
+      </a>
+      <a href="{{ url_for('main.transactionForm') }}" {% if request.endpoint == 'main.transactionForm' %}class="active"{% endif %}>
+        <span>Log Transaction</span>
+      </a>
+      <a href="{{ url_for('main.forecast') }}" {% if request.endpoint == 'main.forecast' %}class="active"{% endif %}>
+        <span>Forecast</span>
+      </a>
+      <a href="{{ url_for('main.bills_overview') }}" {% if request.endpoint == 'main.bills_overview' %}class="active"{% endif %}>
+        <span>Bills</span>
+      </a>
+      
+      <!-- Community section with dropdown -->
+      <div class="nav-section-title">Community</div>
+      <a href="{{ url_for('main.profile') }}" {% if request.endpoint == 'main.profile' or request.endpoint == 'main.achievements' %}class="active"{% endif %}>
+        <span>Profile</span>
+      </a>
+      <a href="{{ url_for('main.friends') }}" {% if request.endpoint == 'main.friends' %}class="active"{% endif %}>
+        <span>Friends</span>
+      </a>
+      <a href="{{ url_for('main.community') }}" {% if request.endpoint == 'main.community' or request.endpoint == 'main.user_goals' or request.endpoint == 'main.new_goal' or request.endpoint == 'main.edit_goal' %}class="active"{% endif %}>
+        <span>Community
+        </span>
+      </a>
+    </nav>
+  </aside>
+  
+  <div class="main-container">
+
+    <main class="site-content">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <p>© 2025 Agile-Web-Dev Group 9 </p>
+    </footer>
   </div>
 
-  <!-- off-canvas menu -->
-  <nav class="mobile-nav">
-    <ul>
-      <li><a href="{{ url_for('main.dashboard') }}">Dashboard</a></li>
-      <li><a href="{{ url_for('main.transactionForm') }}">Log Transaction</a></li>
-      <li><a href="{{ url_for('main.history') }}">History</a></li>
-      <li><a href="{{ url_for('main.profile') }}">Profile</a></li>
-      <li><a href="{{ url_for('main.friends') }}">Friends</a></li>
-      <li><a href="{{ url_for('main.forecast') }}">Forecast</a></li>
-      <li><a href="{{ url_for('main.splitBill') }}">Split Bill</a></li>
-      <li><a href="{{ url_for('main.bills_overview') }}">Bills</a></li>
-    </ul>
-  </nav>
-
-  <header class="site-header">
-  </header>
-
-  <main class="site-content">
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="site-footer">
-    <p>© 2025 Agile-Web-Dev Group 9</p>
-  </footer>
-
   {% block scripts %}{% endblock %}
+  
+  <script>
+    // Enhanced sidebar toggle functionality
+    const toggleButton = document.getElementById('sidebarToggle');
+    const sidebarElement = document.querySelector('.sidebar');
+    
+    // Toggle sidebar visibility
+    function toggleSidebar() {
+      document.body.classList.toggle('sidebar-collapsed');
+      
+      // Update button aria-expanded state for accessibility
+      const isExpanded = !document.body.classList.contains('sidebar-collapsed');
+      toggleButton.setAttribute('aria-expanded', isExpanded);
+      
+      // Store preference
+      localStorage.setItem('sidebarCollapsed', document.body.classList.contains('sidebar-collapsed'));
+    }
+    
+    // Attach click handler
+    toggleButton.addEventListener('click', toggleSidebar);
+    
+    // Check if sidebar was collapsed previously and restore state
+    document.addEventListener('DOMContentLoaded', function() {
+      if (localStorage.getItem('sidebarCollapsed') === 'true') {
+        document.body.classList.add('sidebar-collapsed');
+        toggleButton.setAttribute('aria-expanded', 'false');
+      } else {
+        toggleButton.setAttribute('aria-expanded', 'true');
+      }
+    });
+    
+    // Add keyboard support for accessibility
+    toggleButton.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    });
+  </script>
+  
+  <!-- Achievement notification system -->
+  <div id="toast-container"></div>
+  <div id="achievement-modal-container"></div>
+  <script src="{{ url_for('static', filename='js/achievements.js') }}"></script>
+
 </body>
 </html>
