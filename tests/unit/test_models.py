@@ -79,7 +79,7 @@ class ModelTestCase(unittest.TestCase):
         db.session.commit()
 
         # remaining should be 150
-        tx_refetched = Transaction.query.get(tx.id)
+        tx_refetched = db.session.get(Transaction, tx.id)
         self.assertAlmostEqual(tx_refetched.remaining, 150.00)
 
     def test_transaction_remaining_with_multiple_bills(self):
@@ -107,7 +107,7 @@ class ModelTestCase(unittest.TestCase):
         db.session.commit()
 
         # remaining should be 100
-        tx_refetched = Transaction.query.get(tx.id)
+        tx_refetched = db.session.get(Transaction, tx.id)
         self.assertAlmostEqual(tx_refetched.remaining, 100.00)
 
     def test_bill_and_members_settled_logic(self):
