@@ -270,7 +270,7 @@ def api_user_search():
         query = query.filter(User.username.ilike(f"%{q}%"))
     matches = query.order_by(User.username).limit(10).all()
 
-    # pre-fetch  friend IDs into a set
+    # pre-fetch friend IDs into a set
     my_friend_ids = {u.id for u in current_user.friends}
 
     payload = []
@@ -281,7 +281,6 @@ def api_user_search():
             "is_friend":  u.id in my_friend_ids
         })
     return jsonify(payload)
-
 
 @main.route("/api/add_friend", methods=["POST"])
 @login_required
@@ -303,33 +302,47 @@ def api_add_friend():
     return jsonify({"status": "added"}), 201
 
 
-@main.route("/api/remove_friend", methods=["POST"])
+
+
+
+
+
+
+
+
+
+@main.route('/api/remove_friend', methods=['POST'])
 @login_required
 def api_remove_friend():
     data = request.get_json(silent=True) or {}
     friend_id = data.get("friend_id")
 
-    if not isinstance(friend_id, int) or friend_id == current_user.id:
-        abort(400, "Invalid friend_id")
-
-    friend = User.query.get_or_404(friend_id)
-
-    if friend not in current_user.friends:
-        return jsonify({"status": "not_friends"}), 200
-
-    current_user.friends.remove(friend)
+    if not friend_id:
+        return jsonify({"error": "Missing friend_id"}), 400
+        
+    friend = User.query.get(friend_id)
+    if not friend:
+        return jsonify({"error": "User not found"}), 404
+    
+    # Remove from current user's friends
+    if friend in current_user.friends:
+        current_user.friends.remove(friend)
+    
+    # Remove from friend's friends list (other direction)
+    if current_user in friend.friends:
+        friend.friends.remove(current_user)
+    
     db.session.commit()
     return jsonify({"status": "removed"}), 200
-
 
 @main.route("/api/friends")
 @login_required
 def api_friends():
-    payload = [
-        {"id": f.id, "username": f.username}
-        for f in sorted(current_user.friends, key=lambda u: u.username.lower())
-    ]
-    return jsonify(payload)
+    """API endpoint to get current user's friends"""
+    return jsonify([{'id': friend.id, 'username': friend.username}
+                 for friend in current_user.friends.all()])
+
+
 
 @main.route('/api/shared_users')
 @login_required

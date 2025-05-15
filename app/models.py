@@ -270,3 +270,4 @@ User.achievements = db.relationship(
     lazy='dynamic',
     cascade='all, delete-orphan'
 )
+
