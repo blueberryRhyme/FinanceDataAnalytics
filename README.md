@@ -92,7 +92,7 @@ http://127.0.0.1:5000
 
 ### ✅ Running Tests
 
-The platform includes 12 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
+The platform includes 27 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
 
 **Run all tests using:**
 
