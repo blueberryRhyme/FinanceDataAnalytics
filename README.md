@@ -6,30 +6,20 @@ This web-based financial dashboard provides users with the ability to register, 
 
 ## 📦 Features
 
-- Secure user registration and login
-- Add, edit, and delete financial transactions
-- Real-time transaction history and analytics
-- Monthly statement generation
-- Responsive UI and mobile compatibility
-- Persistent user data using SQLite
-- Unit and Selenium tests for reliability
+- **Secure user authentication**  
+  User registration, login, and session management with encrypted passwords.  
+
+- **Flexible transaction management**  
+  Add, edit, or delete transactions manually _or_ upload a CSV of your transaction history.  
+
+- **Powerful analytics & visualizations**  
+  View your transaction history on interactive graphs, enjoy automatic categorization, and get simple forecasts of future spending trends.  
+
+- **Easy bill splitting**  
+  Split bills with friends, track who owes what, and apply payments with just a few clicks — no more awkward reminders.
 
 ---
 
-## 🧠 Application Design & Architecture
-
-The application follows a **Model-View-Controller (MVC)** architecture:
-
-- **Models (`models.py`)**: Handle data representation (e.g., `User`, `Transaction`)
-- **Views (`templates/`)**: HTML templates rendered via Jinja2
-- **Controllers (`routes.py`)**: Define business logic and route handling
-- **Helpers**: Encapsulated utility functions to simplify route logic and data formatting
-- **Selenium Scripts (`tests/selenium/`)**: Automate browser interactions for end-to-end tests
-- **Unit tests (`tests/unit/`)**: Unit tests to ensure key functions of website operate correctly
-
-The app is modular, enabling scalability and straightforward maintenance.
-
----
 
 ## 🖥️ Local Development Setup
 
@@ -38,7 +28,6 @@ The app is modular, enabling scalability and straightforward maintenance.
 Ensure the following are installed:
 - Python 3.10 or higher
 - pip
-- Google Chrome, Mozilla Firefox, Microsoft Edge
 
 ### 📥 Installation
 
@@ -57,6 +46,17 @@ pip install -r requirements.txt
 
 **Create a .env file in your project root:**
 
+Create a file named `.env` in your project root with the following contents:
+
+```
+FLASK_APP=run.py
+SECRET_KEY=3403-secret-key
+TEST_SECRET_KEY=test-secret-key
+SQLALCHEMY_DATABASE_URI=sqlite:///database.db
+```
+
+Alternatively, set variables in your shell.
+
 **Windows (PowerShell):**
 ```
 $env:FLASK_APP = "run.py"
@@ -68,10 +68,11 @@ $env:SQLALCHEMY_DATABASE_URI = "sqlite:///database.db"
 **Linux/macOS (bash):**
 
 ```
-export FLASK_APP = "run.py"
-export SECRET_KEY = "3403-secret-key"
-export TEST_SECRET_KEY = "test-secret-key"
-export SQLALCHEMY_DATABASE_URI = "sqlite:///database.db"
+export FLASK_APP="run.py"
+export SECRET_KEY="3403-secret-key"
+export TEST_SECRET_KEY="test-secret-key"
+export SQLALCHEMY_DATABASE_URI="sqlite:///database.db"
+
 ```
 
 **Initalize the database**
@@ -81,6 +82,7 @@ flask db upgrade
 ```
 
 **🚀 Running the Application**
+
 **You can launch the app in one of two ways:**
 
 
@@ -93,7 +95,7 @@ python run.py
 ### Option 2: Running Flask with Flask CLI
 
 ```
-flask run
+flask run (Make sure your environment is configured (either via your .env file or by exporting vars)
 ```
 
 **Once the server is running, navigate to:**
@@ -126,22 +128,6 @@ pytest tests/unit
 pytest tests/selenium
 ```
 
-**📁 Test Structure**
-
-```
-tests/
-├── unit/
-│   └── test_models.py
-│   └── test_auth.py
-│   └── test_routes.py
-├── selenium/
-│   └── helpers.py
-│   └── test_registration.py
-│   └── test_login_flow.py
-│   └── test_monthly_statements.py
-│   └── test_duplicate_accounts.py
-│   └── test_split_bill_only.py
-```
 
 **🧪 Example Selenium Use**
 
@@ -152,18 +138,6 @@ Example test case: test_duplicate_accounts.py verifies that duplicate user regis
 def test_duplicate_registration():
     # Attempts to register the same user twice and checks for error message
 ```
-
----
-
-### 📚 Notes for Assessors
-
-This project follows best practices for structure, testing, and modularization.
-
-Git commits are structured by task/module, demonstrating collaborative workflow and Agile practices.
-
-Detailed inline comments and docstrings are provided throughout the codebase.
-
-README includes full setup instructions for replication and assessment.
 
 ---
 
