@@ -136,6 +136,15 @@ pytest tests/unit
 ```
 pytest tests/selenium
 ```
+
+**Run selenium tests only multiple times using:**
+
+Change 10 to the amount of times you would like to run each test
+
+```
+pytest tests/selenium --count=10
+```
+
 <details>
 <summary>View test structure</summary>
 <br>
