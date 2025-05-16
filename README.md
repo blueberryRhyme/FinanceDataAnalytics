@@ -140,6 +140,7 @@ The platform includes 27 unit tests and 5 Selenium tests to ensure correctness a
 **📁 Test Structure**
 
 ```
+sampledata
 tests/
 ├── unit/
 │   └── test_models.py
@@ -198,6 +199,11 @@ Example test case: test_duplicate_accounts.py verifies that duplicate user regis
 def test_duplicate_registration():
     # Attempts to register the same user twice and checks for error message
 ```
+
+**Example manual upload of CSV files**
+
+Sample data to be uploaded is located in the sampledata folder.
+
 
 ---
 
