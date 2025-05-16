@@ -4,7 +4,7 @@ import numpy as np
 from collections import defaultdict
 from math import ceil
 from io import TextIOWrapper
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, jsonify, abort, session
 from flask_login import login_user, logout_user, current_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
@@ -15,7 +15,6 @@ from dateutil.relativedelta import relativedelta
 from rapidfuzz import fuzz
 from decimal import Decimal, ROUND_HALF_UP
 from sqlalchemy import func, extract
-
 
 main = Blueprint('main', __name__)
 
@@ -104,6 +103,8 @@ def profile():
 @main.route('/logout', methods=['POST'])
 @login_required
 def logout():
+    session.pop('user_id', None)
+    session.pop('_flashes', None)
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('main.login'))
@@ -234,6 +235,16 @@ def transactionForm():
 
     # --- CSV import path ---
     csv_file = request.files.get('csv_file')
+
+    fname = getattr(csv_file, 'filename', '') or ''
+    if fname:
+        # only runs when fname != ''
+        if not fname.lower().endswith('.csv'):
+            flash("Invalid file type. Only CSV files are allowed.", "danger")
+            return redirect(request.url)
+
+
+
     if csv_file and csv_file.filename.lower().endswith('.csv'):
         stream    = TextIOWrapper(csv_file.stream, encoding='utf-8-sig')
         reader    = csv.DictReader(stream)

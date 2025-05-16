@@ -20,6 +20,17 @@ This web-based financial dashboard provides users with the ability to register, 
 
 ---
 
+## ✅ End-User Requirements
+
+**Desktop**  
+  - **Chrome**, **Edge**, or **Firefox** released **2020 or later** (roughly version ≥ 80)  
+
+**Mobile**  
+  - iOS 9.0 or later
+  - Android 6.0 or later
+  - Mobile device viewport width **≥ 400 px** (e.g., iPhone 4S and above)
+
+---
 
 ## 🖥️ Local Development Setup
 
@@ -28,6 +39,8 @@ This web-based financial dashboard provides users with the ability to register, 
 Ensure the following are installed:
 - Python 3.10 or higher
 - pip
+- **Desktop Browsers**  
+  - Latest stable releases of **Chrome**, **Edge**, and **Firefox**  
 
 ### 📥 Installation
 
@@ -119,23 +132,7 @@ http://127.0.0.1:5000
 
 The platform includes 27 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
 
-**Run all tests using:**
 
-```
-pytest
-```
-
-**Run unit tests only using:**
-
-```
-pytest tests/unit
-```
-
-**Run selenium tests only using:**
-
-```
-pytest tests/selenium
-```
 <details>
 <summary>View test structure</summary>
 <br>
@@ -143,6 +140,7 @@ pytest tests/selenium
 **📁 Test Structure**
 
 ```
+sampledata
 tests/
 ├── unit/
 │   └── test_models.py
@@ -160,6 +158,38 @@ tests/
 </details>
 
 
+> **Helper-script note:**  
+> If you only have **Chrome** installed, open `tests/selenium/helpers.py` and:
+> 1. **Un-redact** the code at **lines 36–57**  
+> 2. **Redact** the code at **lines 59–91**  
+
+
+**Run all tests using:**
+
+```
+pytest
+```
+
+**Run unit tests only using:**
+
+```
+pytest tests/unit
+```
+
+**Run selenium tests only using:**
+
+```
+pytest tests/selenium
+```
+
+**Run selenium tests only multiple times using:**
+
+Change 10 to the amount of times you would like to run each test
+
+```
+pytest tests/selenium --count=10
+```
+
 **🧪 Example Selenium Use**
 
 Example test case: test_duplicate_accounts.py verifies that duplicate user registration is blocked and handled gracefully.
@@ -169,6 +199,11 @@ Example test case: test_duplicate_accounts.py verifies that duplicate user regis
 def test_duplicate_registration():
     # Attempts to register the same user twice and checks for error message
 ```
+
+**Example manual upload of CSV files**
+
+Sample data to be uploaded is located in the sampledata folder.
+
 
 ---
 

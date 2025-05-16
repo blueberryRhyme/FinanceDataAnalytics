@@ -33,21 +33,25 @@ COMMON_SCREEN_PROFILES = [
 ]
 
 # This section of redacted code is if we want to use chrome only
-'''def get_driver(position_index, browser=None):
-    if browser is None:
-        browser = random.choice(["chrome", "firefox", "edge"])
+'''def get_driver(position_index):
+    from selenium.webdriver.chrome.options import Options as ChromeOptions
+    profile = random.choice(COMMON_SCREEN_PROFILES)
+    print(f"Launching Chrome with profile: {profile['name']}")
 
-    if browser == "firefox":
-        service = FirefoxService(GeckoDriverManager().install())
-        driver = webdriver.Firefox(service=service)
-    elif browser == "edge":
-        service = EdgeService(EdgeChromiumDriverManager().install())
-        driver = webdriver.Edge(service=service)
-    else:  # default to chrome
-        service = ChromeService(ChromeDriverManager().install())
-        driver = webdriver.Chrome(service=service)
+    opts = ChromeOptions()
+    if profile.get("mobile"):
+        opts.add_experimental_option("mobileEmulation", {
+            "deviceName": profile["device_name"]
+        })
 
-    driver.set_window_size(900, 600)
+    service = ChromeService(ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=opts)
+
+    # if not mobile, set a custom window size
+    if not profile.get("mobile"):
+        driver.set_window_size(profile["width"], profile["height"])
+
+    # position and implicit wait are unchanged
     driver.set_window_position(900 * position_index, 0)
     driver.implicitly_wait(5)
     return driver'''

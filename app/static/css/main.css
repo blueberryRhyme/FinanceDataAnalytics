@@ -695,10 +695,8 @@ canvas {
 }
 
 .transaction-table {
-  display: block;
   width: 100%;
   overflow-x: auto;
-  white-space: nowrap;    
 }
 
 .transaction-table th, .transaction-table td {
