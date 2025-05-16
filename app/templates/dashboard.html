@@ -227,6 +227,7 @@
     position: relative;
     overflow: hidden;
   }
+
   
   .chart-card::before {
     content: '';
@@ -290,8 +291,15 @@
   
   canvas {
     width: 100% !important;
-    height: 300px !important;
   }
+
+
+.chart-card canvas {
+  flex: 1;              /* fill all remaining vertical space */
+  width: 100% !important;
+  height: auto !important;
+}
+
   </style>
 {% endblock %}
 
@@ -512,6 +520,8 @@
             },
             options: {
               responsive: true,
+              maintainAspectRatio: false,
+
               plugins: {
                 legend: { display: false },
                 tooltip: {
@@ -551,6 +561,7 @@
         type:'line',
         data:{ labels, datasets:[{ label:'Expenses', data, fill:true, tension:0.4 }]},
         options:{
+          maintainAspectRatio: false,
           responsive:true,
           plugins:{ tooltip:{ callbacks:{ label:ctx=>`$${ctx.raw}` } }},
           scales:{ y:{ ticks:{ callback:v=>`$${v}` } }}
@@ -574,6 +585,7 @@
         type:'doughnut',
         data:{ labels, datasets:[{ data, fill:true }]},
         options:{
+          maintainAspectRatio: false,
           responsive:true,
           plugins:{
             legend:{ position:'right' },

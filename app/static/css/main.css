@@ -94,6 +94,21 @@ h3 {
   overflow: hidden;
 }
 
+.transaction-table {
+  width: 100%;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+@media (max-width: 470px) {
+  .page-container {
+    padding: 0 8px;
+  }
+  .card {
+    padding: 0 8px;
+  }
+}
+
 .card::before {
   content: '';
   position: absolute;
@@ -677,6 +692,13 @@ canvas {
   width: 100%;
   border-collapse: collapse;
   margin-top: 20px;
+}
+
+.transaction-table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;    
 }
 
 .transaction-table th, .transaction-table td {
