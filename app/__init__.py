@@ -38,12 +38,14 @@ def create_app(config_object=None):
     from .routes import main
     app.register_blueprint(main)
     
-    # Register achievement hooks
+    # Register achievement hooks if not disabled (for testing)
     with app.app_context():
-        from .achievement_hooks import register_achievement_hooks
-        register_achievement_hooks(app)
-        
         # Create database tables if they don't exist
         db.create_all()
+        
+        # Only register achievement hooks if not explicitly disabled
+        if not app.config.get('DISABLE_ACHIEVEMENT_HOOKS', False):
+            from .achievement_hooks import register_achievement_hooks
+            register_achievement_hooks(app)
         
     return app
