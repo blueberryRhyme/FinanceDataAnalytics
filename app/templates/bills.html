@@ -20,7 +20,10 @@
 
 {% block content %}
 <div class="page-container">
-  <h1>My Bills</h1>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+    <h1 style="margin: 0; padding: 0;">My Bills</h1>
+    <a href="{{ url_for('main.splitBill') }}" class="button" style="margin-left: 20px; background-color: #4a7baf; font-size: 14px; padding: 8px 12px; white-space: nowrap;">Create Split Bill</a>
+  </div>
 
   <div class="card">
     <table class="transaction-table" id="bills-table">

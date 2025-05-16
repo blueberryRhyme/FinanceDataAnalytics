@@ -16,7 +16,10 @@
 
 {% block content %}
 <div class="page-container">
-  <h1>Log Your Transaction</h1>
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+    <h1 style="margin: 0; padding: 0;">Log Your Transaction</h1>
+    <a href="{{ url_for('main.history') }}" class="button" style="margin-left: 20px; background-color: #4a7baf; font-size: 14px; padding: 8px 12px; white-space: nowrap;">View Transaction History</a>
+  </div>
 
   <div class="card">
     <form id="transaction-form"
