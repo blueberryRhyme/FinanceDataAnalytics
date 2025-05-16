@@ -49,6 +49,12 @@ git clone https://github.com/blueberryRhyme/FinanceDataAnalytics.git
 cd FinanceDataAnalytics
 ```
 
+**Install all required libraries:**
+
+```
+pip install -r requirements.txt
+```
+
 **Create a .env file in your project root:**
 
 **Windows (PowerShell):**
@@ -66,12 +72,6 @@ export FLASK_APP = "run.py"
 export SECRET_KEY = "3403-secret-key"
 export TEST_SECRET_KEY = "test-secret-key"
 export SQLALCHEMY_DATABASE_URI = "sqlite:///database.db"
-```
-
-**Install all required libraries:**
-
-```
-pip install -r requirements.txt
 ```
 
 **Initalize the database**
