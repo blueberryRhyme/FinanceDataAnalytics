@@ -4,6 +4,8 @@ from flask_wtf import CSRFProtect
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate, upgrade as alembic_upgrade
 from flask_login import LoginManager
+from dotenv import load_dotenv
+load_dotenv() 
 
 db = SQLAlchemy()
 migrate = Migrate()
