@@ -26,6 +26,8 @@ This web-based financial dashboard provides users with the ability to register, 
   - **Chrome**, **Edge**, or **Firefox** released **2020 or later** (roughly version ≥ 80)  
 
 **Mobile**  
+  - iOS 9.0 or later
+  - Android 6.0 or later
   - Mobile device viewport width **≥ 400 px** (e.g., iPhone 4S and above)
 
 ---
@@ -157,8 +159,8 @@ tests/
 
 > **Helper-script note:**  
 > If you only have **Chrome** installed, open `tests/selenium/helpers.py` and:
-> 1. **Un-redact** the code at **lines 36–53**  
-> 2. **Redact** the code at **lines 55–87**  
+> 1. **Un-redact** the code at **lines 36–57**  
+> 2. **Redact** the code at **lines 59–91**  
 
 
 **Run all tests using:**
