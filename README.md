@@ -20,6 +20,15 @@ This web-based financial dashboard provides users with the ability to register, 
 
 ---
 
+## ✅ End-User Requirements
+
+**Desktop**  
+  - **Chrome**, **Edge**, or **Firefox** released **2020 or later** (roughly version ≥ 80)  
+
+**Mobile**  
+  - Mobile device viewport width **≥ 400 px** (e.g., iPhone 4S and above)
+
+---
 
 ## 🖥️ Local Development Setup
 
@@ -28,6 +37,8 @@ This web-based financial dashboard provides users with the ability to register, 
 Ensure the following are installed:
 - Python 3.10 or higher
 - pip
+- **Desktop Browsers**  
+  - Latest stable releases of **Chrome**, **Edge**, and **Firefox**  
 
 ### 📥 Installation
 
@@ -119,6 +130,37 @@ http://127.0.0.1:5000
 
 The platform includes 27 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
 
+
+<details>
+<summary>View test structure</summary>
+<br>
+  
+**📁 Test Structure**
+
+```
+tests/
+├── unit/
+│   └── test_models.py
+│   └── test_auth.py
+│   └── test_routes.py
+├── selenium/
+│   └── helpers.py
+│   └── test_registration.py
+│   └── test_login_flow.py
+│   └── test_monthly_statements.py
+│   └── test_duplicate_accounts.py
+│   └── test_split_bill_only.py
+```
+
+</details>
+
+
+> **Helper-script note:**  
+> If you only have **Chrome** installed, open `tests/selenium/helpers.py` and:
+> 1. **Un-redact** the code at **lines 36–53**  
+> 2. **Redact** the code at **lines 55–87**  
+
+
 **Run all tests using:**
 
 ```
@@ -144,30 +186,6 @@ Change 10 to the amount of times you would like to run each test
 ```
 pytest tests/selenium --count=10
 ```
-
-<details>
-<summary>View test structure</summary>
-<br>
-  
-**📁 Test Structure**
-
-```
-tests/
-├── unit/
-│   └── test_models.py
-│   └── test_auth.py
-│   └── test_routes.py
-├── selenium/
-│   └── helpers.py
-│   └── test_registration.py
-│   └── test_login_flow.py
-│   └── test_monthly_statements.py
-│   └── test_duplicate_accounts.py
-│   └── test_split_bill_only.py
-```
-
-</details>
-
 
 **🧪 Example Selenium Use**
 
