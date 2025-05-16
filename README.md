@@ -94,8 +94,10 @@ python run.py
 
 ### Option 2: Running Flask with Flask CLI
 
+Make sure your environment is configured (either via your .env file or by exporting vars)
+
 ```
-flask run (Make sure your environment is configured (either via your .env file or by exporting vars)
+flask run
 ```
 
 **Once the server is running, navigate to:**
