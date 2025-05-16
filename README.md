@@ -38,6 +38,7 @@ The app is modular, enabling scalability and straightforward maintenance.
 Ensure the following are installed:
 - Python 3.10 or higher
 - pip
+- Google Chrome, Mozilla Firefox, Microsoft Edge
 
 ### 📥 Installation
 
@@ -48,21 +49,36 @@ git clone https://github.com/blueberryRhyme/FinanceDataAnalytics.git
 cd FinanceDataAnalytics
 ```
 
+**Create a .env file in your project root:**
+
+**Windows (PowerShell):**
+```
+$env:FLASK_APP = "run.py"
+$env:SECRET_KEY = "3403-secret-key"
+$env:TEST_SECRET_KEY = "test-secret-key"
+$env:SQLALCHEMY_DATABASE_URI = "sqlite:///database.db"
+```
+
+**Linux/macOS (bash):**
+
+```
+export FLASK_APP = "run.py"
+export SECRET_KEY = "3403-secret-key"
+export TEST_SECRET_KEY = "test-secret-key"
+export SQLALCHEMY_DATABASE_URI = "sqlite:///database.db"
+```
+
 **Install all required libraries:**
 
 ```
 pip install -r requirements.txt
 ```
 
-**Create a .env file in your project root:**
+**Initalize the database**
 
-This app uses environment variables to keep secrets out of source control. We load them via `python-dotenv`.
-A .env file should be created and contains the following:
 ```
-SECRET_KEY=3403-secret-key
-TEST_SECRET_KEY=test-secret-key
+flask db upgrade
 ```
-
 
 **🚀 Running the Application**
 **You can launch the app in one of two ways:**
@@ -76,19 +92,7 @@ python run.py
 
 ### Option 2: Running Flask with Flask CLI
 
-**Windows (PowerShell):**
-
 ```
-$env:FLASK_APP = "run.py"
-$env:SQLALCHEMY_DATABASE_URI = "sqlite:///app.db"
-flask run
-```
-
-**Linux/macOS (bash):**
-
-```
-export FLASK_APP=run.py
-export SQLALCHEMY_DATABASE_URI="sqlite:///app.db"
 flask run
 ```
 
@@ -108,6 +112,18 @@ The platform includes 27 unit tests and 5 Selenium tests to ensure correctness a
 
 ```
 pytest
+```
+
+**Run unit tests only using:**
+
+```
+pytest tests/unit
+```
+
+**Run selenium tests only using:**
+
+```
+pytest tests/selenium
 ```
 
 **📁 Test Structure**
