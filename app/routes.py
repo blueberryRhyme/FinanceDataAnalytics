@@ -235,6 +235,16 @@ def transactionForm():
 
     # --- CSV import path ---
     csv_file = request.files.get('csv_file')
+
+    fname = getattr(csv_file, 'filename', '') or ''
+    if fname:
+        # only runs when fname != ''
+        if not fname.lower().endswith('.csv'):
+            flash("Invalid file type. Only CSV files are allowed.", "danger")
+            return redirect(request.url)
+
+
+
     if csv_file and csv_file.filename.lower().endswith('.csv'):
         stream    = TextIOWrapper(csv_file.stream, encoding='utf-8-sig')
         reader    = csv.DictReader(stream)
