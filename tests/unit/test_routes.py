@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from werkzeug.security import generate_password_hash
 from app import create_app, db
 from app.models import User, Transaction, Bill
@@ -6,25 +7,21 @@ from config import TestConfig
 from decimal import Decimal
 from io import BytesIO
 import json
-import json
 
 
 class RoutesTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app(TestConfig)
+    
+    @pytest.fixture(autouse=True)
+    def setup_with_app(self, app_for_testing):
+        """Use the global app fixture instead of creating our own"""
+        self.app = app_for_testing
         self.client = self.app.test_client()
-
-        with self.app.app_context():
-            db.create_all()
-            # create a test user with a hashed password
-            u = User(username='test', email='t@example.com')
-            u.password = generate_password_hash('secret')
-            db.session.add(u)
-            db.session.commit()
-
-    def tearDown(self):
-        with self.app.app_context():
-            db.drop_all()
+        
+        # Create a test user with a hashed password
+        u = User(username='test', email='t@example.com')
+        u.password = generate_password_hash('secret')
+        db.session.add(u)
+        db.session.commit()
 
     def test_user_registration(self):
         resp = self.client.post(

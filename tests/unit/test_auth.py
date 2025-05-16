@@ -1,4 +1,5 @@
 import unittest
+import pytest
 from decimal import Decimal
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import create_app, db
@@ -7,17 +8,12 @@ from config import TestConfig
 
 
 class AuthTestCase(unittest.TestCase):
-    def setUp(self):
-        self.app = create_app(TestConfig)
-        self.ctx = self.app.app_context()
-        self.ctx.push()
-        db.create_all()
+    
+    @pytest.fixture(autouse=True)
+    def setup_with_app(self, app_for_testing):
+        """Use the global app fixture instead of creating our own"""
+        self.app = app_for_testing
         self.client = self.app.test_client()
-
-    def tearDown(self):
-        db.session.remove()
-        db.drop_all()
-        self.ctx.pop()
 
     def test_register_success(self):
         before = User.query.count()
