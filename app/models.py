@@ -129,7 +129,8 @@ class Bill(db.Model):
                              db.ForeignKey("users.id", ondelete="CASCADE"),
                              nullable=False)
     description  = db.Column(db.String(255))
-    date         = db.Column(db.Date, default=func.current_date(), nullable=False)
+    # Using datetime.utcnow().date() instead of func.current_date() for better test compatibility
+    date         = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     total        = db.Column(db.Numeric(12, 2), nullable=False)
 
     @property
