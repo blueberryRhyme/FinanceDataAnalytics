@@ -54,6 +54,15 @@ cd FinanceDataAnalytics
 pip install -r requirements.txt
 ```
 
+**Create a .env file in your project root**
+This app uses environment variables to keep secrets out of source control. We load them via `python-dotenv`.
+A .env file should be created and contains the following:
+```
+SECRET_KEY=3403-secret-key
+TEST_SECRET_KEY=test-secret-key
+```
+
+
 **🚀 Running the Application**
 **You can launch the app in one of two ways:**
 
