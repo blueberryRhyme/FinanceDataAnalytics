@@ -31,7 +31,7 @@ Ensure the following are installed:
 
 ### 📥 Installation
 
-<details>
+<details open>
 <summary>View detailed installation instructions</summary>
 <br>
   
@@ -136,6 +136,28 @@ pytest tests/unit
 ```
 pytest tests/selenium
 ```
+<details>
+<summary>View test structure</summary>
+<br>
+  
+**📁 Test Structure**
+
+```
+tests/
+├── unit/
+│   └── test_models.py
+│   └── test_auth.py
+│   └── test_routes.py
+├── selenium/
+│   └── helpers.py
+│   └── test_registration.py
+│   └── test_login_flow.py
+│   └── test_monthly_statements.py
+│   └── test_duplicate_accounts.py
+│   └── test_split_bill_only.py
+```
+
+</details>
 
 
 **🧪 Example Selenium Use**
