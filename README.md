@@ -31,6 +31,10 @@ Ensure the following are installed:
 
 ### 📥 Installation
 
+<details>
+<summary>View detailed installation instructions</summary>
+<br>
+  
 **Clone the repository and navigate into the project folder:**
 
 ```
@@ -58,6 +62,7 @@ SQLALCHEMY_DATABASE_URI=sqlite:///database.db
 Alternatively, set variables in your shell.
 
 **Windows (PowerShell):**
+
 ```
 $env:FLASK_APP = "run.py"
 $env:SECRET_KEY = "3403-secret-key"
@@ -72,7 +77,6 @@ export FLASK_APP="run.py"
 export SECRET_KEY="3403-secret-key"
 export TEST_SECRET_KEY="test-secret-key"
 export SQLALCHEMY_DATABASE_URI="sqlite:///database.db"
-
 ```
 
 **Initalize the database**
@@ -80,8 +84,11 @@ export SQLALCHEMY_DATABASE_URI="sqlite:///database.db"
 ```
 flask db upgrade
 ```
+</details>
 
-**🚀 Running the Application**
+---
+
+## 🚀 Running the Application
 
 **You can launch the app in one of two ways:**
 
@@ -108,7 +115,7 @@ http://127.0.0.1:5000
 
 ---
 
-### ✅ Running Tests
+## ✅ Running Tests
 
 The platform includes 27 unit tests and 5 Selenium tests to ensure correctness and prevent regressions.
 
@@ -143,7 +150,7 @@ def test_duplicate_registration():
 
 ---
 
-**👨‍💻 Authors**
+## 👨‍💻 Authors
 
 ```
 Developed by blueberryRhyme Jia Qi Lam (23751337), gilbertting03 Gilbert Xiang Yi Ting (23957541), armaanjosann Armaan Josan (24001588), fishymate Mark Tanel (23660033)
