@@ -54,7 +54,8 @@ cd FinanceDataAnalytics
 pip install -r requirements.txt
 ```
 
-**Create a .env file in your project root**
+**Create a .env file in your project root:**
+
 This app uses environment variables to keep secrets out of source control. We load them via `python-dotenv`.
 A .env file should be created and contains the following:
 ```
