@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Friends{% endblock %}
+
+{% block head %}
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Financial Friends &amp; Challenges</h1>
+  <p class="page-description">
+    Compare your financial health with friends, join challenges, and earn badges for meeting your financial goals.
+  </p>
+
+  <!-- ───── Friends list ───── -->
+  <div class="card">
+    <h2 class="section-title">Your Friends</h2>
+    <ul id="friend-list" class="user-list"></ul>
+  </div>
+
+  <!-- ───── Shared with Current User ───── -->
+  <div class="card">
+    <h2 class="section-title">Shared with You</h2>
+    <ul id="shared-list" class="user-list"></ul>
+  </div>
+
+
+  
+
+
+  <!-- ───── Add-friend search ───── -->
+  <div class="card">
+    <h2 class="section-title">Add Friends</h2>
+    <input id="user-search" class="input-box"
+           style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e2e8f0"
+           type="text" placeholder="Search for users…">
+    <ul id="search-results" style="margin-top:1rem"></ul>
+  </div>
+</div>
+
+<!-- ───── Scripts ───── -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+/* -----------------------------------------------------------
+   Charts (unchanged from your original)
+----------------------------------------------------------- */
+window.addEventListener('DOMContentLoaded', function () {
+  /* 1. Radar chart ----------------------------------------------------- */
+  const radarCtx = document.getElementById('comparisonChart').getContext('2d');
+  new Chart(radarCtx, {
+    type: 'radar',
+    data: {
+      labels: ['Budgeting','Saving','Investing','Debt Management','Income Growth'],
+      datasets: [
+        { label:'You',
+          data:[85,70,60,90,75],
+          fill:true,
+          backgroundColor:'rgba(59,130,246,0.2)',
+          borderColor:'#3b82f6',
+          pointBackgroundColor:'#3b82f6',
+          pointBorderColor:'#fff',
+          pointHoverBackgroundColor:'#fff',
+          pointHoverBorderColor:'#3b82f6'},
+        { label:'Average Friend',
+          data:[65,80,70,75,80],
+          fill:true,
+          backgroundColor:'rgba(16,185,129,0.2)',
+          borderColor:'#10b981',
+          pointBackgroundColor:'#10b981',
+          pointBorderColor:'#fff',
+          pointHoverBackgroundColor:'#fff',
+          pointHoverBorderColor:'#10b981'}
+      ]
+    },
+    options:{responsive:true,elements:{line:{borderWidth:3}},scales:{r:{angleLines:{display:true},suggestedMin:0,suggestedMax:100}}}
+  });
+
+  /* 2. Spending bar chart ---------------------------------------------- */
+  const barCtx = document.getElementById('spendingChart').getContext('2d');
+  const spendingData = {
+    april:{average:[450,280,320,150,210,180,90],gilbert:[380,230,410,120,190,150,70],mark:[420,310,350,180,220,200,110],jia:[550,300,200,150,220,190,90]},
+    march:{average:[470,260,340,170,230,190,100],gilbert:[400,220,430,140,180,160,80],mark:[440,290,370,190,240,210,120],jia:[570,270,220,180,230,200,100]},
+    february:{average:[430,300,300,160,200,170,95],gilbert:[360,250,390,130,200,140,75],mark:[400,330,330,170,210,190,115],jia:[530,320,180,140,190,180,95]}
+  };
+  let currentMonth='april',currentFriend='average',spendingChart;
+  function drawSpending(){
+    if(spendingChart)spendingChart.destroy();
+    spendingChart=new Chart(barCtx,{
+      type:'bar',
+      data:{
+        labels:['Housing','Food','Transportation','Entertainment','Utilities','Shopping','Other'],
+        datasets:[
+          {label:'Your Spending',data:[500,300,250,200,180,150,100],backgroundColor:'#3b82f6',borderColor:'#2563eb',borderWidth:1},
+          {label:(currentFriend==='average'?'Average Friend':currentFriend.charAt(0).toUpperCase()+currentFriend.slice(1)),
+           data:spendingData[currentMonth][currentFriend],backgroundColor:'#10b981',borderColor:'#059669',borderWidth:1}
+        ]},
+      options:{responsive:true,plugins:{legend:{position:'top'},tooltip:{callbacks:{label:c=>c.dataset.label+': $'+c.parsed.y}}},scales:{y:{beginAtZero:true,ticks:{callback:v=>'$'+v}}}}
+    });
+  }
+  drawSpending();
+  document.getElementById('month-selector').addEventListener('change',e=>{currentMonth=e.target.value;drawSpending();});
+  document.getElementById('friend-selector').addEventListener('change',e=>{currentFriend=e.target.value;drawSpending();});
+});
+
+// CSRF token used by every POST request
+const cfg       = JSON.parse(document.getElementById('app-config').textContent);
+const csrfToken = cfg.csrf; 
+/* -----------------------------------------------------------
+   Friends list – load & remove
+----------------------------------------------------------- */
+(function () {
+  const $list = document.getElementById('friend-list');
+
+  function buildRow(f){
+    const li=document.createElement('li');
+    li.className='user-item';li.style.justifyContent='space-between';
+    const span=document.createElement('span');span.textContent=f.username;
+    const btn=document.createElement('button');btn.className='btn btn--sm';btn.textContent='Remove';btn.dataset.id=f.id;
+    li.append(span,btn);return li;
+  }
+
+  async function loadFriends(){
+    const r=await fetch('/api/friends');
+    if(!r.ok)return;
+    const data=await r.json();
+    $list.innerHTML='';
+    if(!data.length){
+      $list.innerHTML='<li style="padding:8px 0;color:#94a3b8">No friends yet</li>';
+      return;
+    }
+    data.forEach(f=>{$list.appendChild(buildRow(f));});
+  }
+  window.loadFriends=loadFriends;   // expose for search script
+  loadFriends();
+
+  $list.addEventListener('click',async e=>{
+    const btn=e.target.closest('button[data-id]');if(!btn)return;
+    btn.disabled=true;
+    const r=await fetch('/api/remove_friend',{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+      body:JSON.stringify({friend_id:+btn.dataset.id})
+    });
+    if(r.ok){
+      btn.parentElement.remove();
+      if(!$list.querySelector('li'))loadFriends();
+    }else{
+      btn.disabled=false;
+      alert('Could not remove friend — try again.');
+    }
+  });
+})();
+
+/* -----------------------------------------------------------
+   Shared dashboard
+----------------------------------------------------------- */
+
+(function(){
+    const $shared = document.getElementById('shared-list');
+    function row(u){
+      const li = document.createElement('li');
+      li.className='user-item'; li.style.justifyContent='space-between';
+      li.textContent = u.username;
+      const btn = document.createElement('button');
+      btn.className='btn btn--sm';
+      btn.textContent = 'View Dashboard';
+      btn.dataset.id = u.id;
+      li.append(btn);
+      return li;
+    }
+    async function loadShared(){
+      const r = await fetch('/api/shared_users');
+      const js = r.ok ? await r.json() : [];
+      $shared.innerHTML = '';
+      if(!js.length) $shared.innerHTML = '<li style="padding:8px;color:#94a3b8">No one is sharing with you</li>';
+      else js.forEach(u=>$shared.append(row(u)));
+    }
+    $shared.addEventListener('click', e=>{
+      const btn = e.target.closest('button[data-id]');
+      if(!btn) return;
+      window.location.href = `/shared_dashboard/${btn.dataset.id}`;
+    });
+    loadShared();
+  })();
+
+
+
+/* -----------------------------------------------------------
+   Add-friend live search
+----------------------------------------------------------- */
+(function () {
+  const $search=document.getElementById('user-search');
+  const $results=document.getElementById('search-results');
+  let debounce;
+
+  function buildRow(u){
+    const li=document.createElement('li');
+    li.className='user-item';li.style.justifyContent='space-between';
+    const btn=document.createElement('button');btn.className='btn btn--sm';btn.dataset.id=u.id;
+    if(u.is_friend){btn.textContent='Friend ✓';btn.disabled=true;btn.style.opacity=0.6;}
+    else{btn.textContent='Add';}
+    li.append(u.username,btn);return li;
+  }
+
+  function render(list){
+    $results.innerHTML='';
+    if(!list.length){
+      $results.innerHTML='<li style="padding:8px 0;color:#94a3b8">No users found</li>';
+      return;
+    }
+    list.forEach(u=>$results.appendChild(buildRow(u)));
+  }
+
+  async function search(q){
+    if(!q){render([]);return;}
+    const r=await fetch('/api/user_search?q='+encodeURIComponent(q));
+    if(r.ok)render(await r.json());
+  }
+
+  $search.addEventListener('input',e=>{
+    clearTimeout(debounce);
+    debounce=setTimeout(()=>search(e.target.value.trim()),300);
+  });
+
+  $results.addEventListener('click',async e=>{
+    const btn=e.target.closest('button[data-id]');if(!btn||btn.disabled)return;
+    btn.disabled=true;
+    const r=await fetch('/api/add_friend',{
+      method:'POST',
+      credentials:'same-origin',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken},
+      body:JSON.stringify({friend_id:+btn.dataset.id})
+    });
+    if(r.ok){
+      btn.textContent='Friend ✓';
+      btn.style.opacity=0.6;
+      loadFriends();                // refresh sidebar instantly
+    }else{
+      btn.disabled=false;
+      alert('Could not add friend — try again.');
+    }
+  });
+})();
+</script>
+{% endblock %}

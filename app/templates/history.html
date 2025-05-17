@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}Transactions{% endblock %}
+{% block head %}
+<style>
+  .controls{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
+
+  .card{background:#fff;border:1px solid #ddd;border-radius:10px;
+        padding:20px;box-shadow:0 2px 6px rgba(0,0,0,.08);overflow-x:auto;}
+
+  .transaction-table{width:100%;border-collapse:collapse;}
+  .transaction-table th,.transaction-table td{padding:8px 10px;text-align:left;}
+  .transaction-table th{background:#f2f5f8;}
+  .transaction-table tr:nth-child(even){background:#fafafa;}
+
+  .cat-cell{cursor:pointer;}
+  .cat-editing{background:#fffbe6;}
+
+  .btn{border:none;background:none;cursor:pointer;font-size:1em;}
+  .btn.save{color:green;}  .btn.cancel{color:#d33;}
+
+  .pager{text-align:center;margin:24px 0;} .pager a{margin:0 6px;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Your Transaction History</h1>
+
+
+  <div class="controls">
+    <input class=" input-box" id="search" type="text" placeholder="Search…" />
+
+    <select id="filter-type"  class = "input-box">
+      <option value="" >All types</option>
+      <option value="expense">Expense</option>
+      <option value="income">Income</option>
+      <option value="transfer">Transfer</option>
+    </select>
+
+    <select id="filter-cat"  class = "input-box">
+      <option value="">All categories</option>
+      {% set SUGGEST = ['food','groceries','travel','shopping','health','salary','savings','refund','uncategorized'] %}
+      {% for c in SUGGEST %}<option value="{{ c }}">{{ c|title }}</option>{% endfor %}
+    </select>
+
+    <select id="sort" class = "input-box">
+      <option value="date-desc">Date ↓</option>
+      <option value="date-asc">Date ↑</option>
+      <option value="amount-desc">Amount ↓</option>
+      <option value="amount-asc">Amount ↑</option>
+      <option value="category">Category A-Z</option>
+      <option value="type">Type A-Z</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <table class="transaction-table">
+      <thead>
+        <tr>
+          <th>Date</th><th>Description</th><th>Category</th>
+          <th>Amount</th><th>Type</th><th>Actions</th><th>Associate</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for tx in transactions %}
+        <tr data-tx="{{ tx.id }}">
+          <td>{{ tx.date }}</td>
+          <td>{{ tx.description }}</td>
+
+          <td class="cat-cell" data-cat="{{ tx.category }}">
+            <span class="cat-view">{{ tx.category }}</span>
+          </td>
+
+          <td>${{ "%.2f"|format(tx.amount) }}</td>
+          <td>{{ tx.type.value }}</td>
+          <td>
+            <form method="POST" style="display:inline;">
+              {{ form.csrf_token }}
+              <input type="hidden" name="transaction_id" value="{{ tx.id }}">
+              <input type="hidden" name="action" value="delete">
+              <button type="submit" class="btn" title="Delete">🗑️</button>
+            </form>
+          </td>
+          <td>
+            {% if tx.type == TransactionType.transfer and tx.transfer_direction == 'in' %}
+              <button class="btn btn--sm btn-ghost"
+                      title="Associate friend"
+                      data-tx="{{ tx.id }}">🔍</button>
+            {% endif %}
+          </td>
+
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+
+    
+
+    <div id="friend-modal" style="
+     display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+     z-index:1000;align-items:center;justify-content:center;">
+      <div style="background:#fff;border-radius:8px;padding:20px;width:320px">
+        <h3 style="margin-top:0">Tag transfer to a friend</h3>
+        <input id="friend-search" class="input-box" style="width:100%" placeholder="Search…">
+        <ul id="friend-results" class="user-list" style="margin-top:1rem;max-height:160px;overflow:auto"></ul>
+        <button id="friend-close" class="button" style="margin-top:12px">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="pager">
+    {% if pagination.has_prev %}<a href="{{ url_for('main.history', page=pagination.prev_num) }}">&laquo; Prev</a>{% endif %}
+    Page {{ pagination.page }} / {{ pagination.pages }}
+    {% if pagination.has_next %}<a href="{{ url_for('main.history', page=pagination.next_num) }}">Next &raquo;</a>{% endif %}
+  </div>
+  <a href="{{ url_for('main.transactionForm') }}" class="button">
+    Log more transaction
+  </a>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  
+const csrf   = '{{ form.csrf_token._value() }}';
+const SUGGEST= ["food","groceries","shopping","health","salary",
+                "savings","refund","uncategorized"];
+
+/* ---------- inline category edit ---------- */
+document.querySelector('.transaction-table').addEventListener('click', e=>{
+  const cell = e.target.closest('.cat-cell');
+  if(!cell || cell.classList.contains('cat-editing')) return;
+  edit(cell);
+});
+function edit(cell){
+  const original = cell.dataset.cat;
+  cell.classList.add('cat-editing'); cell.innerHTML='';
+  const sel = document.createElement('select');
+  sel.innerHTML = SUGGEST.map(c=>`<option ${c===original?'selected':''}>${c}</option>`).join('')
+           +'<option value="__custom__">Custom…</option>';
+  const inp = Object.assign(document.createElement('input'),{type:'text',style:'display:none'});
+  const save = btn('✓','green'), cancel = btn('✕','#d33');
+  cell.append(sel,inp,save,cancel);
+  sel.onchange=()=>{inp.style.display=sel.value==='__custom__'?'inline':'none'; if(inp.style.display==='inline') inp.focus();};
+  const outside=e=>{if(!cell.contains(e.target)) commit();};
+  document.addEventListener('click',outside,{once:true,capture:true});
+  save.onclick  =e=>{e.stopPropagation();commit();};
+  cancel.onclick=e=>{e.stopPropagation();finish(original);};
+
+  const txId = +cell.parentElement.dataset.tx;
+  function commit(){ finish(sel.value==='__custom__'? (inp.value.trim().toLowerCase()||original):sel.value); }
+  function finish(val){
+    cell.classList.remove('cat-editing'); cell.dataset.cat=val;
+    cell.innerHTML=`<span class="cat-view">${val}</span>`;
+    if(val!==original) update(txId,val);
+  }
+}
+function btn(txt,color){
+  const b=document.createElement('button'); b.type='button'; b.textContent=txt;
+  b.className='btn'; b.style.color=color; return b;
+}
+function update(id,cat){
+  fetch('/api/update_transaction',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+    body:JSON.stringify({transaction_id:id,category:cat})
+  }).then(r=>r.ok||r.json().then(d=>alert(d.error||'Update failed')))
+    .catch(()=>alert('Network error'));
+}
+
+/* ---------- filter + sort ---------- */
+const tbody       = document.querySelector('.transaction-table tbody');
+const rows        = Array.from(tbody.children);
+const searchInp   = document.getElementById('search');
+const filtTypeSel = document.getElementById('filter-type');
+const filtCatSel  = document.getElementById('filter-cat');
+const sortSel     = document.getElementById('sort');
+[searchInp,filtTypeSel,filtCatSel].forEach(el=>el.addEventListener('input',updateView));
+sortSel.addEventListener('change',updateView);
+function updateView(){
+  const q=searchInp.value.trim().toLowerCase();
+  const needType=filtTypeSel.value, needCat=filtCatSel.value;
+  rows.forEach(tr=>{
+    const desc= tr.children[1].textContent.toLowerCase();
+    const cat = tr.querySelector('.cat-view').textContent.toLowerCase();
+    const type= tr.children[4].textContent.toLowerCase();
+    const show = (!q||desc.includes(q)||cat.includes(q)||type.includes(q)) &&
+                 (!needType||needType===type) && (!needCat||needCat===cat);
+    tr.style.display = show? '' : 'none';
+  });
+  applySort();
+}
+function applySort(){
+  const [col,dir]=sortSel.value.split('-');
+  const visible=rows.filter(tr=>tr.style.display!=='none');
+  visible.sort((a,b)=>{
+    const get=tr=>{
+      switch(col){
+        case 'amount':   return parseFloat(tr.children[3].textContent.slice(1));
+        case 'category': return tr.querySelector('.cat-view').textContent.toLowerCase();
+        case 'type':     return tr.children[4].textContent.toLowerCase();
+        case 'date':
+        default:         return new Date(tr.children[0].textContent);
+      }
+    };
+    return get(a)>get(b)?1:-1;
+  });
+  if(dir==='desc') visible.reverse();
+  visible.forEach(tr=>tbody.appendChild(tr));
+}
+updateView();
+let activeTxId = null;
+
+/* grab existing elements */
+const $modal   = document.getElementById('friend-modal');
+const $fSearch = document.getElementById('friend-search');
+const $fList   = document.getElementById('friend-results');
+const $close   = document.getElementById('friend-close');
+
+/* debounce helper */
+function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}}
+
+/* open modal when 🔍 clicked */
+document.querySelector('.transaction-table').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-tx]'); if(!btn) return;
+  activeTxId = +btn.dataset.tx;
+  openModal();
+});
+function openModal(){
+  $modal.style.display = 'flex';
+  $fSearch.value = '';
+  renderFriends();          // <-- draw everyone
+  $fSearch.focus();
+}
+
+/* close modal */
+function closeModal(){
+  $modal.style.display = 'none';
+  activeTxId = null;
+}
+$close.addEventListener('click', closeModal);
+$modal.addEventListener('click', e=>{ if(e.target === $modal) closeModal(); });
+
+let friendsCache = null;
+async function loadFriends(){
+  if(friendsCache) return friendsCache;
+  const r = await fetch('/api/friends', {credentials:'same-origin'});
+  friendsCache = r.ok ? await r.json() : [];
+  return friendsCache;
+}
+
+$fSearch.addEventListener('input', debounce(renderFriends, 200));
+
+async function renderFriends(){
+  const q = $fSearch.value.trim().toLowerCase();
+  const friends = await loadFriends();
+
+  // If search box is empty -> show everyone
+  const results = q
+        ? friends.filter(f => f.username.toLowerCase().includes(q))
+        : friends;
+
+  $fList.innerHTML = '';
+  if (!results.length){
+    $fList.innerHTML = '<li style="padding:8px;color:#94a3b8">No friends found</li>';
+    return;
+  }
+
+  results.forEach(f=>{
+    const li  = document.createElement('li');
+    li.className = 'user-item';
+    li.style.justifyContent = 'space-between';
+    li.textContent = f.username;
+
+    const btn = document.createElement('button');
+    btn.className = 'button';
+    btn.textContent = 'Tag';
+    btn.dataset.id   = f.id;
+    btn.dataset.name = f.username;
+
+    li.append(btn);
+    $fList.append(li);
+  });
+}
+
+
+
+$fList.addEventListener('click', async e=>{
+  const btn = e.target.closest('button[data-id]'); if(!btn) return;
+  const fid = +btn.dataset.id, fname = btn.dataset.name;
+
+  const res = await fetch('/api/bill/associate', {
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'X-CSRFToken': csrf
+    },
+    body: JSON.stringify({
+      transaction_id: activeTxId,
+      friend_id: fid
+    })
+  });
+
+  // If it failed to associate, show the error and bail out
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    alert(err.error || 'Could not tag transfer');
+    return;
+  }
+
+  // On success, tag similars if desired
+  const r2 = await fetch(`/api/bill/suggest_friends/${activeTxId}`);
+  const list = r2.ok ? await r2.json() : [];
+  if (list.length) {
+    const yes = confirm(`Also tag ${list.length} similar transfers to ${fname}?`);
+    if (yes) {
+      for (const t of list) {
+        await fetch('/api/bill/associate', {
+          method: 'POST',
+          headers: {
+            'Content-Type':'application/json',
+            'X-CSRFToken': csrf
+          },
+          body: JSON.stringify({
+            transaction_id: t.id,
+            friend_id:         fid,
+            confidence:        t.score / 100
+          })
+        });
+      }
+    }
+    alert('Transfer(s) linked!');
+  }
+
+  closeModal();
+});
+
+</script>
+
+{% endblock %}

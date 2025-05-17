@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+
+{% block title %}Financial Dashboard{% endblock %}
+
+{% block head %}
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #2563eb;
+    --primary-dark: #1d4ed8;
+    --secondary: #64748b;
+    --accent: #3b82f6;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --background: #f8fafc;
+    --white: #ffffff;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+  }
+
+  * { box-sizing: border-box; }
+  
+  /* Dashboard container */
+  .dashboard-container {
+    padding: 30px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    min-height: 80vh;
+  }
+  /* Dashboard header */
+  .dashboard-header {
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 30px;
+  }
+  
+  h1 {
+    font-size: 36px;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+    margin-bottom: 16px;
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    text-align: center;
+  }
+  
+  .dashboard-description {
+    font-size: 18px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  
+  /* Summary cards at the top */
+  .summary-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    width: 100%;
+    max-width: 1200px;
+    margin-bottom: 40px;
+    justify-content: center;
+  }
+  
+  .summary-card {
+    background-color: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    flex: 1;
+    min-width: 280px;
+    max-width: 380px;
+    box-shadow: var(--shadow-md);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  .summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  /* Border indicator for cards */
+  .summary-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  }
+  
+  .summary-card.success::before {
+    background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+  }
+  
+  .summary-card.warning::before {
+    background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 100%);
+  }
+  
+  .summary-card.danger::before {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+  }
+  
+  .summary-title {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+  }
+  
+  .summary-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+  }
+  
+  .summary-change {
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  
+  .change-positive {
+    color: var(--success);
+  }
+  
+  .change-negative {
+    color: var(--danger);
+  }
+  
+  /* Expenses grid */
+  .expense-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+    width: 100%;
+    max-width: 1200px;
+  }
+  
+  .expense-card {
+    background-color: var(--white);
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: var(--shadow-md);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .expense-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-lg);
+  }
+  
+  .expense-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--primary);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.3s ease;
+  }
+  
+  .expense-card:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+  
+  .expense-title {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+  }
+  
+  .expense-amount {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 10px;
+  }
+  
+  .expense-date {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-bottom: 15px;
+  }
+  
+  .expense-trend {
+    height: 40px;
+    margin-top: 10px;
+  }
+  /* Chart container */
+  .chart-container {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin-top: 40px;
+  }
+  
+  .chart-card {
+    background-color: var(--white);
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: var(--shadow-md);
+    flex: 1;
+    min-width: 45%;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .chart-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 100%);
+  }
+  
+  .chart-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 20px;
+  }
+  
+  /* Modal styles */
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 999;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+    backdrop-filter: blur(3px);
+  }
+  
+  .modal-content {
+    background-color: var(--white);
+    padding: 30px;
+    border-radius: 16px;
+    max-width: 700px;
+    width: 90%;
+    position: relative;
+    box-shadow: var(--shadow-lg);
+    animation: modalFadeIn 0.3s ease;
+  }
+  
+  @keyframes modalFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .close-button {
+    position: absolute;
+    top: 20px;
+    right: 25px;
+    font-size: 24px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+  }
+  
+  .close-button:hover {
+    color: var(--danger);
+  }
+  
+  canvas {
+    width: 100% !important;
+    height: 300px !important;
+  }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="header-container">
+    {% if shared_user %}
+    <h1>Viewing {{ shared_user }}’s Dashboard</h1>
+  {% else %}
+    <h1>Your Financial Dashboard</h1>
+  {% endif %}
+  <p class="dashboard-description">Track your expenses, monitor spending trends, and manage your finances</p>
+  </div>
+ 
+
+
+
+  {% set exp_positive = exp_pct_change|float >= 0 %}
+  {% set sav_positive = sav_pct_change|float >= 0 %}
+
+  <!-- Summary cards -->  
+  <div class="summary-cards">
+      <!-- Total Expenses -->
+      <div class="summary-card">
+        <div class="summary-title">Total Expenses</div>
+        <div class="summary-value">${{ total_expenses }}</div>
+        <div class="summary-change {{ 'change-positive' if exp_positive else 'change-negative' }}">
+          {% if exp_positive %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 12a.5.5 0 0 1-.5-.5V5.707L5.354
+                 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5
+                 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5
+                 5.707V11.5a.5.5 0 0 1-.5.5z"></path>
+          </svg>
+          {% else %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+              d="M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5
+                 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5
+                 0 0 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z"/>
+          </svg>
+          {% endif %}
+          {{ exp_pct_change }}% from last month
+        </div>
+      </div>
+    
+      <!-- Savings -->
+      <div class="summary-card success">
+        <div class="summary-title">Savings</div>
+        <div class="summary-value">${{ savings }}</div>
+        <div class="summary-change {{ 'change-positive' if sav_positive else 'change-negative' }}">
+          {% if sav_positive %}
+
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 12a.5.5 0 0 1-.5-.5V5.707L5.354
+                 7.854a.5.5 0 1 1-.708-.708l3-3a.5.5
+                 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5
+                 5.707V11.5a.5.5 0 0 1-.5.5z"></path>
+          </svg>
+          {% else %}
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+              d="M8 4a.5.5 0 0 1 .5.5v5.793l2.146-2.147a.5.5
+                 0 0 1 .708.708l-3 3a.5.5 0 0 1-.708 0l-3-3a.5.5
+                 0 0 1 .708-.708L7.5 10.293V4.5A.5.5 0 0 1 8 4z"/>
+          </svg>
+
+          {% endif %}
+          {{ sav_pct_change }}% from last month
+        </div>
+      </div>
+    
+  
+    <div class="summary-card warning">
+      <div class="summary-title">Monthly Budget</div>
+      <div class="summary-value">${{ budget }}</div>
+      <div class="summary-change" id="budget-change">
+        {{ rem_pct }}% remaining
+      </div>
+    </div>
+  </div>
+  
+  {% for section in ['Expense', 'Income', 'Transfer'] %}
+  <h2 style="align-self: flex-start; margin-left: 20px; color: var(--text-primary); font-size: 24px; margin-bottom: 16px;">
+    Recent {{ section }}s
+  </h2>
+  <div class="expense-grid" id="{{ section|lower }}-container">
+    <!-- cards will be rendered here -->
+  </div>
+  {% endfor %}
+<!-- Modals will be generated dynamically -->
+
+  <!-- Chart sections -->  
+  <div class="chart-container">
+    <div class="chart-card">
+      <div class="chart-title">Monthly Spending Trends</div>
+      <canvas id="spendingTrendsChart"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Expense Distribution</div>
+      <canvas id="expenseDistributionChart"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Modals will be generated dynamically -->
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  
+
+  const cfg = JSON.parse(document.getElementById('app-config').textContent);
+  const viewUserId = cfg.viewUserId;  // number or null
+
+
+  // categories = grouped-by-category for Recent
+  const categories     = [];
+
+
+  const categoriesByType = {
+    expense: [],
+    income:  [],
+    transfer:[]
+  };
+
+
+  // expenseEntries = flat list of expense-only entries for charts
+  const expenseEntries = [];
+
+  async function loadTransactions() {
+    try {
+
+      const urlTxn = viewUserId
+        ? `/api/transaction?view_user_id=${viewUserId}`
+        : '/api/transaction';
+      const res  = await fetch(urlTxn);
+      if (!res.ok) throw new Error(res.statusText);
+      const data = await res.json();  // [ {category, history:[…]}, … ]
+
+      data.forEach(cat => {
+      ['expense','income','transfer'].forEach(type => {
+        const hist = cat.history.filter(e => e.type === type);
+        if (!hist.length) return;
+
+        // total up
+        const total = hist.reduce((sum, e) => sum + e.amount, 0);
+        const id    = `${type}-${cat.category}`.replace(/\s+/g,'-').toLowerCase();
+
+        categoriesByType[type].push({
+          id, title: cat.category, amount: total, history: hist
+        });
+
+        // only collect expenses for the global charts
+        if (type === 'expense') {
+          hist.forEach(e => expenseEntries.push({
+            date: e.date, amount: e.amount, category: cat.category
+          }));
+        }
+      });
+    });
+
+    // render each section
+    renderRecent('expense');
+    renderRecent('income');
+    renderRecent('transfer');
+    renderTrendChart();
+    renderDistributionChart();
+
+    } catch (err) {
+      console.error('Failed to load transactions:', err);
+    }
+  }
+  
+ function renderRecent(type) {
+    const container = document.getElementById(`${type}-container`);
+    container.innerHTML = '';
+    categoriesByType[type].forEach(cat => {
+      // card
+      const card = document.createElement('div');
+      card.className = 'expense-card';
+      card.innerHTML = `
+        <div class="expense-title">${cat.title}</div>
+        <div class="expense-amount">$${cat.amount.toFixed(2)}</div>
+      `;
+      card.onclick = () => openModal(cat.id + 'Modal');
+      container.appendChild(card);
+
+      // modal (once)
+      if (!document.getElementById(cat.id + 'Modal')) {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.id = cat.id + 'Modal';
+        modal.innerHTML = `
+          <div class="modal-content">
+            <span class="close-button" onclick="closeModal('${cat.id}Modal')">&times;</span>
+            <h3>${cat.title} ${type.charAt(0).toUpperCase()+type.slice(1)} History</h3>
+            <canvas id="${cat.id}Chart"></canvas>
+          </div>
+        `;
+        document.body.appendChild(modal);
+
+        // draw chart
+        setTimeout(() => {
+          const ctx = document.getElementById(cat.id + 'Chart').getContext('2d');
+          new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels: cat.history.map(e => e.date),
+              datasets: [{
+                label: cat.title,
+                data:  cat.history.map(e => e.amount),
+                tension: 0.4,
+                fill: true,
+                backgroundColor: 'rgba(59,130,246,0.2)',
+                borderColor: '#3b82f6',
+                borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  mode: 'index',
+                  intersect: false,
+                  callbacks: {
+                    label: ctx => {
+                      const entry = cat.history[ctx.dataIndex];
+                      // show both amount & description if present
+                      return `${entry.description || ''}: $${ctx.raw}`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: { ticks: { callback: v => `$${v}` } }
+              }
+            }
+          });
+        }, 0);
+      }
+    });
+  }
+
+  function renderTrendChart() {
+    const monthly = expenseEntries.reduce((acc, {date,amount}) => {
+      const m = date.slice(0,7);
+      acc[m] = (acc[m]||0) + amount;
+      return acc;
+    }, {});
+    const labels = Object.keys(monthly).sort();
+    const data   = labels.map(m => monthly[m]);
+
+    new Chart(
+      document.getElementById('spendingTrendsChart'),
+      {
+        type:'line',
+        data:{ labels, datasets:[{ label:'Expenses', data, fill:true, tension:0.4 }]},
+        options:{
+          responsive:true,
+          plugins:{ tooltip:{ callbacks:{ label:ctx=>`$${ctx.raw}` } }},
+          scales:{ y:{ ticks:{ callback:v=>`$${v}` } }}
+        }
+      }
+    );
+  }
+
+  function renderDistributionChart() {
+    const byCat = expenseEntries.reduce((acc, {category,amount})=> {
+      acc[category] = (acc[category]||0) + amount;
+      return acc;
+    }, {});
+    const total  = Object.values(byCat).reduce((s,v)=> s+v, 0);
+    const labels = Object.keys(byCat);
+    const data   = labels.map(c => ((byCat[c]/total)*100).toFixed(1));
+
+    new Chart(
+      document.getElementById('expenseDistributionChart'),
+      {
+        type:'doughnut',
+        data:{ labels, datasets:[{ data, fill:true }]},
+        options:{
+          responsive:true,
+          plugins:{
+            legend:{ position:'right' },
+            tooltip:{ callbacks:{ label:ctx=>`${ctx.label}: ${ctx.raw}%` }}
+          }
+        }
+      }
+    );
+  }
+
+  function openModal(id)  { document.getElementById(id).style.display = 'flex'; }
+  function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+  window.addEventListener('DOMContentLoaded', loadTransactions);
+</script>
+{% endblock %}

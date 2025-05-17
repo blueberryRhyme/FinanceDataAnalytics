@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Log Transaction{% endblock %}
+
+{% block head %}
+<style>
+  #other-category-container,
+  #transfer-direction-container,
+  #category-container {
+    display: none;
+    margin-top: 0;
+    margin-bottom: 20px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+
+<div class="page-container">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; width: 100%;">
+    <h1 style="margin: 0; padding: 0;">Log Your Transaction</h1>
+    <a href="{{ url_for('main.history') }}" class="button" style="margin-left: 20px; background-color: #4a7baf; font-size: 14px; padding: 8px 12px; white-space: nowrap;">View Transaction History</a>
+  </div>
+
+
+  <div class="card">
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }}">
+        {{ message }}
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+    <form id="transaction-form"
+          class="form-wrapper"
+          method="POST"
+          action="{{ url_for('main.transactionForm') }}"
+          enctype="multipart/form-data">
+
+      {{ form.csrf_token }}
+
+      <!-- Type -->
+      <label for="type">{{ form.type.label }}</label>
+      {{ form.type(class="input-box") }}
+      {% for err in form.type.errors %}<div class="error">{{ err }}</div>{% endfor %}
+
+      <!-- Transfer Direction -->
+      <div id="transfer-direction-container">
+        <label for="transfer_direction">{{ form.transfer_direction.label }}</label>
+        {{ form.transfer_direction(class="input-box") }}
+        {% for err in form.transfer_direction.errors %}<div class="error">{{ err }}</div>{% endfor %}
+      </div>
+
+      <!-- Amount -->
+      <label for="amount">{{ form.amount.label }}</label>
+      {{ form.amount(class="input-box", placeholder="Enter amount") }}
+      {% for err in form.amount.errors %}<div class="error">{{ err }}</div>{% endfor %}
+
+      <!-- Category -->
+      <div id="category-container">
+        <label for="category">{{ form.category.label }}</label>
+        {{ form.category(class="input-box") }}
+        {% for err in form.category.errors %}<div class="error">{{ err }}</div>{% endfor %}
+      </div>
+
+      <!-- Other Category -->
+      <div id="other-category-container">
+        <label for="other_category">{{ form.other_category.label }}</label>
+        {{ form.other_category(class="input-box", placeholder="Specify category") }}
+        {% for err in form.other_category.errors %}<div class="error">{{ err }}</div>{% endfor %}
+      </div>
+
+      <label for="description">{{ form.description.label }}</label>
+      {{ form.description(class="input-box", placeholder="Enter Description") }}
+      {% for err in form.description.errors %}<div class="error">{{ err }}</div>{% endfor %}
+
+
+      <!-- Date -->
+      <label for="date">{{ form.date.label }}</label>
+      {{ form.date(class="input-box") }}
+      {% for err in form.date.errors %}<div class="error">{{ err }}</div>{% endfor %}
+
+      <!-- CSV Upload -->
+      <label for="csv_file">{{ form.csv_file.label }}</label>
+      {{ form.csv_file(class="input-box") }}
+      {% for err in form.csv_file.errors %}<div class="error">{{ err }}</div>{% endfor %}
+
+      <!-- Submit -->
+      {{ form.submit(class="button") }}
+    </form>
+  </div>
+</div>
+
+<script>
+  const typeField         = document.getElementById('type');
+  const transferDiv       = document.getElementById('transfer-direction-container');
+  const categoryField     = document.getElementById('category');
+  const categoryContainer = document.getElementById('category-container');
+  const otherDiv          = document.getElementById('other-category-container');
+
+  function updateVisibility() {
+    const t = typeField.value;
+
+    transferDiv.style.display       = (t === 'transfer') ? 'block' : 'none';
+    categoryContainer.style.display = (t === 'expense' || t === 'income') ? 'block' : 'none';
+    otherDiv.style.display          = (categoryField.value === 'other') ? 'block' : 'none';
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    updateVisibility();
+    const dateField = document.getElementById('date');
+    if (dateField && !dateField.value) {
+      dateField.value = new Date().toISOString().split('T')[0];
+    }
+  });
+
+  typeField.addEventListener('change', updateVisibility);
+  categoryField.addEventListener('change', updateVisibility);
+</script>
+{% endblock %}

@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+{% block title %}Split a Bill{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Split a Bill</h1>
+
+  <div class="card">
+    <h2 class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+      Select Transactions
+      <span id="sel-count" class="badge">0</span>
+    </h2>
+
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input id="tx-search" class="input-box" style="flex:1" placeholder="Search description…">
+      <select id="tx-filter" class="input-box" style="width:150px">
+        <option value="">All types</option>
+        <option value="transfer">Transfers</option>
+        <option value="expense">Expenses</option>
+        <option value="income">Income</option>
+      </select>
+    </div>
+
+    <div style="max-height:320px;overflow:auto;border:1px solid #e2e8f0">
+      <table id="tx-table" class="transaction-table">
+        <thead>
+          <tr><th style="width:38px"></th><th>Date</th><th>Description</th><th style="text-align:right">Amount</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div id="tx-pager" class="pager" style="margin-top:12px"></div>
+  </div>
+
+  <h3 >Selected Transactions</h3>
+<ul id="basket" class="card"></ul>
+
+
+
+<div class="card">
+    <h2 class="section-title">Add Friends to Bill</h2>
+
+    <select id="friend-quick" class="input-box" style="margin-bottom:8px;width:100%">
+      <option value="">— pick a friend —</option>
+      {% for f in friends %}
+        <option value="{{ f.id }}">{{ f.username }}</option>
+      {% endfor %}
+    </select>
+
+    <input id="user-search" class="input-box"
+           style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e2e8f0"
+           placeholder="Search for users…">
+    <ul id="search-results" class="user-list" style="margin-top:1rem"></ul>
+
+    <h3 style="margin:1rem 0 0.5rem">Selected Members</h3>
+    <ul id="member-list" class="user-list"></ul>
+  </div>
+
+  <div style="text-align:right;margin-top:24px">
+    <div style="margin-top:16px">
+        <label for="bill-desc">Bill description (optional):</label><br>
+        <input id="bill-desc" class="input-box" style="width:100%" 
+                placeholder="e.g. ‘Lunch with Alice & Bob’">
+    </div>
+    <button id="split-btn" class="btn btn-primary" disabled>Split Evenly</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+
+
+<script>
+
+const $basket = document.getElementById('basket');
+
+window.billUI = {
+  transactions: new Map(),        // id → {desc, amt}
+  members:      new Set(),        // {id, name}
+  updateBtn() {
+    document.getElementById('split-btn').disabled =
+      !(this.transactions.size && this.members.size);
+    document.getElementById('sel-count').textContent = this.transactions.size;
+    this.renderBasket();
+  },
+  renderBasket(){
+    $basket.innerHTML = '';
+    this.transactions.forEach((t, id) => {
+    const li = document.createElement('li');
+    li.className = 'user-item';
+    li.textContent = `${t.desc} – $${t.amt.toFixed(2)} – #${id}`;
+    $basket.append(li);
+  });
+}
+};
+
+function debounce(fn, ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);}}
+
+(function(){
+  const PER = 10;
+  let allRows = [], view = [], page = 1;
+
+  const $body   = document.querySelector('#tx-table tbody');
+  const $pager  = document.getElementById('tx-pager');
+  const $search = document.getElementById('tx-search');
+  const $filter = document.getElementById('tx-filter');
+
+  fetch('/api/transaction')
+    .then(r=>r.json())
+    .then(data=>{
+      data.forEach(cat=>{
+        cat.history.forEach(tx=>{
+          allRows.push({
+            id:   tx.id,
+            date: new Date(tx.date),
+            desc: tx.description,
+            amt:  tx.amount,
+            type: tx.type
+          });
+        });
+      });
+      allRows.sort((a,b)=>b.date - a.date);
+      applyFilters();
+    });
+
+  $search.addEventListener('input', debounce(applyFilters,300));
+  $filter.addEventListener('change', applyFilters);
+
+  function applyFilters(){
+    const q = $search.value.trim().toLowerCase();
+    const t = $filter.value;
+    view = allRows.filter(r=>{
+      return (!t || r.type===t) && (!q || r.desc.toLowerCase().includes(q));
+    });
+    page = 1;
+    render();
+  }
+
+  function render(){
+    const start = (page-1)*PER, slice = view.slice(start, start+PER);
+    $body.innerHTML = '';
+
+    slice.forEach(r=>{
+      const tr = document.createElement('tr');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.id = r.id;
+      if(billUI.transactions.has(r.id)) cb.checked = true;
+
+      cb.addEventListener('change',e=>{
+        const id = +e.target.dataset.id;
+        if(e.target.checked){
+          billUI.transactions.set(id, {desc:r.desc, amt:r.amt});
+        } else {
+          billUI.transactions.delete(id);
+        }
+        billUI.updateBtn();
+      });
+
+      tr.innerHTML = `<td></td>
+        <td>${r.date.toLocaleDateString()}</td>
+        <td>${r.desc}</td>
+        <td style="text-align:right">${r.amt.toFixed(2)}</td>`;
+      tr.children[0].append(cb);
+      $body.append(tr);
+    });
+
+    /* pager */
+    const pages = Math.ceil(view.length / PER);
+    $pager.innerHTML = '';
+    if(pages > 1){
+      $pager.append(
+        pagerLink('« Prev', page>1, ()=>{page--;render();}),
+        document.createTextNode(` Page ${page}/${pages} `),
+        pagerLink('Next »', page<pages, ()=>{page++;render();})
+      );
+    }
+    function pagerLink(txt, enabled, cb){
+      const a=document.createElement('a');
+      a.textContent=txt; a.href='javascript:void 0';
+      if(enabled) a.addEventListener('click',cb);
+      else {a.style.opacity=0.4; a.style.pointerEvents='none';}
+      return a;
+    }
+  }
+})();
+
+const $memberList = document.getElementById('member-list');
+
+function renderMembers(){
+  $memberList.innerHTML='';
+  billUI.members.forEach(m=>{
+    const li=document.createElement('li');
+    li.className='user-item'; li.style.justifyContent='space-between';
+    li.textContent=m.name;
+    const rm=document.createElement('button');
+    rm.className='btn btn--sm'; rm.textContent='×'; rm.dataset.id=m.id;
+    li.append(rm); $memberList.append(li);
+  });
+  billUI.updateBtn();
+}
+
+document.getElementById('friend-quick').addEventListener('change',e=>{
+  const id=+e.target.value; if(!id) return;
+  const name=e.target.options[e.target.selectedIndex].textContent;
+  billUI.members.add({id,name}); renderMembers(); e.target.value='';
+});
+
+$memberList.addEventListener('click',e=>{
+  const btn=e.target.closest('button[data-id]'); if(!btn) return;
+  const id=+btn.dataset.id;
+  billUI.members.forEach(m=>{ if(m.id===id) billUI.members.delete(m); });
+  renderMembers();
+});
+
+(function(){
+  const $search   = document.getElementById('user-search');
+  const $results  = document.getElementById('search-results');
+  let debounceId;
+  $search.addEventListener('input', e=>{
+    clearTimeout(debounceId);
+    debounceId = setTimeout(()=>lookup(e.target.value.trim()), 300);
+  });
+
+  async function lookup(q){
+    if(!q){$results.innerHTML='';return;}
+    const r=await fetch('/api/user_search?q='+encodeURIComponent(q));
+    const list=r.ok?await r.json():[];
+    $results.innerHTML='';
+    list.forEach(u=>{
+      const li=document.createElement('li');
+      li.className='user-item'; li.style.justifyContent='space-between';
+      li.append(u.username);
+      const btn=document.createElement('button');
+      btn.className='btn btn--sm'; btn.textContent='Add';
+      btn.dataset.id=u.id; btn.dataset.name=u.username;
+      li.append(btn); $results.append(li);
+    });
+  }
+
+  $results.addEventListener('click',e=>{
+    const btn=e.target.closest('button[data-id]'); if(!btn) return;
+    billUI.members.add({id:+btn.dataset.id,name:btn.dataset.name});
+    renderMembers(); $results.innerHTML=''; $search.value='';
+  });
+})();
+
+const cfg  = JSON.parse(document.getElementById('app-config').textContent);
+const csrf = cfg.csrf;
+
+document.getElementById('split-btn').addEventListener('click', async ()=>{
+const transaction_ids = [...billUI.transactions.keys()];
+const member_ids = Array.from(
+    new Set(
+        [...billUI.members].map(m => m.id)
+    )
+    );
+
+
+  const details = document.getElementById('bill-desc').value.trim() || undefined;
+
+  console.log("member:" + member_ids)
+
+
+  console.log()
+  const r = await fetch('/api/bill/create',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+    body:JSON.stringify({transaction_ids, member_ids, details})
+  });
+  if(r.status===201){
+  const {bill_id} = await r.json();
+  alert('Bill created successfully!'); 
+  //  ask if user wants to go to the bill page
+  const go = confirm('Go to the bill page?');
+  if (go) {
+    window.location.href = `/bill/${bill_id}`;
+  }
+  return;
+    }else{
+    alert('Could not create bill — check console.'); console.error(await r.text());
+  }
+});
+</script>
+
+
+{% endblock %}

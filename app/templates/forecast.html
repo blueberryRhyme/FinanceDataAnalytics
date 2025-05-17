@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Spending Forecast{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js">
+<style>
+  .card { max-width: 900px; margin: 0 auto; padding: 24px; }
+  .controls { margin-top: 16px; display:flex; gap:12px; flex-wrap:wrap; }
+  .controls input, .controls select { padding:6px; }
+
+ /* 1) Fixed-height wrapper */
+  .chart-container {
+    position: relative;
+    width: 100%;
+    height: 400px;        /* pick your desired height */
+    margin-bottom: 16px;
+  }
+  /* 2) Make the canvas fill it */
+  .chart-container canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100% !important;
+    height: 100% !important;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1> Spending Forecast</h1>
+
+  <div class="card">
+    <canvas id="forecastChart" ></canvas>
+
+    <div class="controls">
+      <label>Category 
+        <select id="catSelect"></select>
+      </label>
+
+      <label>Monthly adjustment&nbsp;(+/−)&nbsp;
+        <input type="number" id="deltaInput" placeholder="e.g. -50 to save, 50 to spend more">
+      </label>
+
+      <label>History window
+        <select id="windowSelect">
+        <option value="3">3 mo</option>
+          <option value="6">6 mo</option>
+          <option value="12" selected>12 mo</option>
+          <option value="24">24 mo</option>
+        </select>
+      </label>
+      
+
+      <button class="button" id="simulateBtn">Simulate</button>
+    </div>
+
+    <p id="advice" style="margin-top:12px;font-weight:500;"></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+
+
+const cfg       = JSON.parse(document.getElementById('app-config').textContent);
+const CSRF = cfg.csrf; 
+
+
+let chart, rawData;
+
+async function loadBase() {
+  const win = document.getElementById('windowSelect').value;
+  const res = await fetch(`/api/forecast?months=${win}`);
+  rawData   = await res.json();
+  populateCatSelect(Object.keys(rawData.categories));
+  drawChart(rawData.overall);
+}
+
+document.getElementById('windowSelect')
+        .addEventListener('change', loadBase);
+
+function populateCatSelect(cats){
+  const sel = document.getElementById('catSelect');
+  sel.innerHTML = `<option value="">All categories</option>` +
+                  cats.map(c=>`<option>${c}</option>`).join('');
+}
+
+function drawChart(series){
+  const ctx = document.getElementById('forecastChart');
+  if(chart) chart.destroy();
+  chart = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: rawData.months,
+      datasets:[{
+        label:'Projected spend',
+        data: series,
+        tension:0.3,
+        fill:false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false   //  follow our container’s height
+    }
+  });
+}
+
+document.getElementById('catSelect').addEventListener('change', e=>{
+  const cat = e.target.value;
+  drawChart(cat? rawData.categories[cat] : rawData.overall);
+  document.getElementById('advice').textContent='';
+});
+
+document.getElementById('simulateBtn').addEventListener('click', async ()=>{
+  const delta = parseFloat(document.getElementById('deltaInput').value||0);
+  const cat   = document.getElementById('catSelect').value || null;
+  const res   = await fetch("/api/forecast_simulate", {
+    method:'POST',
+    headers:{
+        'Content-Type':'application/json',
+        'X-CSRFToken': CSRF
+
+    },
+    body: JSON.stringify({delta_amount: isNaN(delta) ? 0 : delta, category:cat})
+  });
+  const data  = await res.json();
+  drawChart(data.series);
+  document.getElementById('advice').textContent = data.advice;
+});
+
+loadBase();
+</script>
+{% endblock %}

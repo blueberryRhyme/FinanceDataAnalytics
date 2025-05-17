@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Your Profile{% endblock %}
+
+{%block head %}
+<!-- No additional styles needed here as they're now in main.css -->
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <h1>Welcome, {{ current_user.username }}!</h1>
+  
+  <div class="card">
+    <p><strong>Email:</strong> {{ current_user.email }}</p>
+    
+    <form action="{{ url_for('main.logout') }}" method="post" style="text-align: right; margin-top: 10px;">
+      {{ logout_form.csrf_token }}
+      {{ logout_form.submit(class="button-small") }}
+    </form>
+  </div>
+
+  <div class="profile-content-container">
+  
+    <div class="card">
+      <!-- Display fields -->
+      <div class="goal-list" id="goal-list">
+        <div class=" goal-item">Your Monthly Budget:
+          $<span id="current-budget">{{ current_user.settings.monthly_budget }}</span>
+        </div>
+          
+        <div class = "goal-item">
+          <label>
+            Currency:
+            <select id="currency-select" class="input-box">
+              {% for code,name in [('AUD','Australian Dollar'),('USD','US Dollar'),('EUR','Euro')] %}
+                <option value="{{ code }}" {% if current_user.currency==code %}selected{% endif %}>
+                  {{ code }} — {{ name }}
+                </option>
+              {% endfor %}
+            </select>
+          </label>
+        </div>
+
+        <div class="goal-item">
+          <label >
+          Monthly Budget: $
+            <input id="budget-input" type="number" min="0" step="0.01"
+                  class="input-box"
+                  value="{{ current_user.budget }}">
+          </label>
+          <button id="save-settings" class="btn" style="margin-left:1rem">
+            Save
+          </button>
+        </div>  
+
+      </div>
+    </div>
+      
+
+<script>
+
+const cfg       = JSON.parse(document.getElementById('app-config').textContent);
+const CSRF = cfg.csrf; 
+
+  document.getElementById('save-settings').addEventListener('click', async () => {
+    const currency = document.getElementById('currency-select').value;
+    const budget   = parseFloat(document.getElementById('budget-input').value);
+
+    // Basic validation
+    if (isNaN(budget) || budget < 0) {
+      alert('Please enter a valid non-negative budget.');
+      return;
+    }
+
+    const btn = event.currentTarget;
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+
+    // Send AJAX
+    const res = await fetch('/api/update_settings', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF
+      },
+      body: JSON.stringify({ currency, budget })
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Save';
+
+    if (res.ok) {
+      const data = await res.json();
+      // Update the display spans
+      document.getElementById('current-budget').textContent = data.budget.toFixed(2);
+      document.getElementById('budget-input').value      = data.budget.toFixed(2);
+
+      // Show confirmation message
+      const msg = document.getElementById('settings-msg');
+      msg.textContent = 'Settings updated!';
+      msg.style.display = 'block';
+      setTimeout(() => { msg.style.display = 'none'; }, 3000);
+    } else {
+      const err = await res.text();
+      alert('Update failed: ' + err);
+    }
+  });
+
+
+
+
+
+    // Function to add a new goal to the list dynamically
+    function addGoal(event) {
+      event.preventDefault();  // Prevent form from submitting
+
+      // Get the input values
+      const goalName = document.getElementById('goal-name').value;
+      const targetAmount = document.getElementById('target-amount').value;
+      const targetDate = document.getElementById('target-date').value;
+
+      // Create a new goal item element
+      const newGoalItem = document.createElement('div');
+      newGoalItem.classList.add('goal-item');
+      newGoalItem.textContent = `${goalName} - $${targetAmount} by ${targetDate}`;
+
+      // Append the new goal item to the goal list
+      document.getElementById('goal-list').appendChild(newGoalItem);
+
+      // Clear the input fields
+      document.getElementById('goal-name').value = '';
+      document.getElementById('target-amount').value = '';
+      document.getElementById('target-date').value = '';
+    }
+    
+    
+
+ 
+
+    document.addEventListener("DOMContentLoaded", () => {
+
+
+
+      document.body.addEventListener("click", async e => {
+        if (!e.target.matches(".remove-friend-btn")) return;
+
+        const btn    = e.target;
+        const item   = btn.closest(".friend-item");
+        const userId = item.dataset.userId;
+
+        try {
+          const resp = await fetch(`/remove_friend/${userId}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-CSRFToken": CSRF
+            }
+          });
+          if (!resp.ok) throw new Error("Failed to remove friend");
+
+          item.remove();
+        } catch (err) {
+          console.error(err);
+          alert("Could not remove friend. Try again.");
+        }
+      });
+  });
+  </script>
+  {% endblock %}

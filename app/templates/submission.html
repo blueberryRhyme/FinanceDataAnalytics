@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Submission{% endblock %}
+
+{% block content %}
+<div class="page-container">
+ 
+<div class="card">
+  {% if count is not none %}
+    <h1>CSV Processed</h1>
+    <p><strong>{{ count }}</strong> transactions imported successfully.</p>
+  {% else %}
+    <h1>Expense Recorded</h1>
+    <ul>
+      <li><strong>Amount:</strong> {{ amount }}</li>
+      <li><strong>Category:</strong> {{ category }}</li>
+      <li><strong>Date:</strong> {{ date }}</li>
+    </ul>
+  {% endif %}
+</div>
+
+<a href="{{ url_for('main.transactionForm') }}" class="button">
+  Log another {{ count is not none and 'batch of transactions' or 'transaction' }}
+</a>
+</div>
+{% endblock %}
